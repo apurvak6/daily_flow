@@ -161,6 +161,9 @@ class ActivitiesView extends GetView<ActivitiesController> {
                 actionLabel: controller.statusFilter.value == 'all'
                     ? 'Add Daily Activity'
                     : 'Show All',
+                actionIcon: controller.statusFilter.value == 'all'
+                    ? Icons.add_rounded
+                    : Icons.visibility_outlined,
                 onAction: () {
                   if (controller.statusFilter.value == 'all') {
                     ActivityFormSheet.show(context);
@@ -185,7 +188,14 @@ class ActivitiesView extends GetView<ActivitiesController> {
                     final master = await controller.activityRepository
                         .getActivityById(occ.activityId);
                     if (context.mounted && master != null) {
-                      ActivityFormSheet.show(context, activityToEdit: master);
+                      final result = await ActivityFormSheet.show(
+                        context,
+                        activityToEdit: master,
+                      );
+                      if (result == true) {
+                        await controller.loadAllActivities();
+                        await controller.loadActivitiesForSelectedDate();
+                      }
                     }
                   },
                   onDelete: () => _confirmDelete(context, occ.activityId),
@@ -221,8 +231,16 @@ class ActivitiesView extends GetView<ActivitiesController> {
           return ActivityTemplateCard(
             activity: activity,
             onToggleActive: (val) => controller.toggleActivityActive(activity),
-            onEdit: () =>
-                ActivityFormSheet.show(context, activityToEdit: activity),
+            onEdit: () async {
+              final result = await ActivityFormSheet.show(
+                context,
+                activityToEdit: activity,
+              );
+              if (result == true) {
+                await controller.loadAllActivities();
+                await controller.loadActivitiesForSelectedDate();
+              }
+            },
             onDelete: () => _confirmDelete(context, activity.id!),
           );
         },

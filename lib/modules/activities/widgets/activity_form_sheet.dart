@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/activity_model.dart';
+import '../../calendar/controllers/calendar_controller.dart';
 import '../controllers/activities_controller.dart';
 
 /// Modal bottom sheet for creating or editing daily recurring activities with validation.
@@ -153,6 +154,11 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
           isActive: _isActive,
         );
         await controller.createActivity(newActivity);
+        if (Get.isRegistered<CalendarController>()) {
+          final cal = Get.find<CalendarController>();
+          cal.loadSelectedDateDetails(cal.selectedDay.value);
+          cal.loadMonthEvents(cal.focusedDay.value);
+        }
         Get.back(result: true);
         Get.snackbar(
           'Activity Created',
@@ -176,6 +182,11 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
           isActive: _isActive,
         );
         await controller.updateActivity(updated);
+        if (Get.isRegistered<CalendarController>()) {
+          final cal = Get.find<CalendarController>();
+          cal.loadSelectedDateDetails(cal.selectedDay.value);
+          cal.loadMonthEvents(cal.focusedDay.value);
+        }
         Get.back(result: true);
         Get.snackbar(
           'Activity Updated',

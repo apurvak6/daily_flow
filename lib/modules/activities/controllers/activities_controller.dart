@@ -4,6 +4,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../data/models/activity_model.dart';
 import '../../../data/models/activity_occurrence_model.dart';
 import '../../../data/repositories/activity_repository.dart';
+import '../../calendar/controllers/calendar_controller.dart';
 import '../../dashboard/controllers/dashboard_controller.dart';
 
 /// ViewModel controller for daily recurring activities, habits, and status tracking.
@@ -254,6 +255,11 @@ class ActivitiesController extends GetxController {
   void _notifyDashboard() {
     if (Get.isRegistered<DashboardController>()) {
       Get.find<DashboardController>().refreshDashboard();
+    }
+    if (Get.isRegistered<CalendarController>()) {
+      final cal = Get.find<CalendarController>();
+      cal.loadSelectedDateDetails(cal.selectedDay.value);
+      cal.loadMonthEvents(cal.focusedDay.value);
     }
   }
 }

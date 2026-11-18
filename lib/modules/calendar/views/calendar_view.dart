@@ -282,7 +282,16 @@ class CalendarView extends GetView<CalendarController> {
                 occ.taskId,
               );
               if (context.mounted && task != null) {
-                TaskFormSheet.show(context, taskToEdit: task);
+                final result = await TaskFormSheet.show(
+                  context,
+                  taskToEdit: task,
+                );
+                if (result == true) {
+                  controller.loadSelectedDateDetails(
+                    controller.selectedDay.value,
+                  );
+                  controller.loadMonthEvents(controller.focusedDay.value);
+                }
               }
             },
             onDelete: () async {
@@ -328,7 +337,16 @@ class CalendarView extends GetView<CalendarController> {
                 occ.activityId,
               );
               if (context.mounted && act != null) {
-                ActivityFormSheet.show(context, activityToEdit: act);
+                final result = await ActivityFormSheet.show(
+                  context,
+                  activityToEdit: act,
+                );
+                if (result == true) {
+                  controller.loadSelectedDateDetails(
+                    controller.selectedDay.value,
+                  );
+                  controller.loadMonthEvents(controller.focusedDay.value);
+                }
               }
             },
             onDelete: () async {

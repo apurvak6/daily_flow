@@ -6,6 +6,7 @@ class EmptyStateWidget extends StatelessWidget {
   final String title;
   final String description;
   final String? actionLabel;
+  final IconData? actionIcon;
   final VoidCallback? onAction;
 
   const EmptyStateWidget({
@@ -14,6 +15,7 @@ class EmptyStateWidget extends StatelessWidget {
     required this.title,
     required this.description,
     this.actionLabel,
+    this.actionIcon,
     this.onAction,
   });
 
@@ -56,7 +58,7 @@ class EmptyStateWidget extends StatelessWidget {
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: onAction,
-                icon: const Icon(Icons.add, size: 18),
+                icon: Icon(_resolveActionIcon(), size: 18),
                 label: Text(actionLabel!),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
@@ -73,5 +75,17 @@ class EmptyStateWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _resolveActionIcon() {
+    if (actionIcon != null) return actionIcon!;
+    final labelLower = actionLabel!.toLowerCase();
+    if (labelLower.contains('filter')) {
+      return Icons.filter_alt_off_rounded;
+    }
+    if (labelLower.contains('show') || labelLower.contains('all')) {
+      return Icons.visibility_outlined;
+    }
+    return Icons.add_rounded;
   }
 }

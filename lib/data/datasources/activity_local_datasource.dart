@@ -81,12 +81,25 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
     final now = DateTime.now().toIso8601String();
     final updated = activity.copyWith(updatedAt: now);
 
-    return await db.update(
+    final count = await db.update(
       DbConstants.tableActivities,
       updated.toMap(),
       where: '${DbConstants.colActId} = ?',
       whereArgs: [activity.id],
     );
+
+    // If deactivated, delete any uncompleted future occurrences (> today) so they do not linger tomorrow or beyond
+    if (!activity.isActive && activity.id != null) {
+      final todayIso = AppDateUtils.todayIso;
+      await db.delete(
+        DbConstants.tableActivityOccurrences,
+        where:
+            '${DbConstants.colActOccActivityId} = ? AND ${DbConstants.colActOccDate} > ? AND ${DbConstants.colActOccIsCompleted} = 0 AND (${DbConstants.colActOccStatus} = ? OR ${DbConstants.colActOccStatus} IS NULL)',
+        whereArgs: [activity.id, todayIso, 'pending'],
+      );
+    }
+
+    return count;
   }
 
   @override
