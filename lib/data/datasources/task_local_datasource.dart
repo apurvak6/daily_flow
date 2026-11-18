@@ -42,8 +42,48 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
   @override
   Future<int> insertTask(TaskModel task) async {
     return await _dbHelper.runInTransaction<int>((txn) async {
+      final trimmedTitle = task.title.trim();
+
+      // Guard against duplicate recurring and one-time tasks
+      if (task.isRecurring) {
+        // Recurring tasks repeat across dates; duplicate check is based on title and recurring flag
+        final dupCheck = await txn.query(
+          DbConstants.tableTasks,
+          where:
+              'LOWER(TRIM(${DbConstants.colTaskTitle})) = LOWER(?) AND ${DbConstants.colTaskIsRecurring} = 1',
+          whereArgs: [trimmedTitle],
+          limit: 1,
+        );
+        if (dupCheck.isNotEmpty) {
+          AppLogger.warning(
+            'Duplicate recurring task detected: "$trimmedTitle". Insertion aborted.',
+            'TaskLocalDataSource',
+          );
+          return -1;
+        }
+      } else {
+        // One-time tasks: duplicate check is based on title, due date and non-recurring flag
+        final targetDate = task.dueDate ?? AppDateUtils.todayIso;
+        final dupCheck = await txn.query(
+          DbConstants.tableTasks,
+          where:
+              'LOWER(TRIM(${DbConstants.colTaskTitle})) = LOWER(?) AND ${DbConstants.colTaskDueDate} = ? AND ${DbConstants.colTaskIsRecurring} = 0',
+          whereArgs: [trimmedTitle, targetDate],
+          limit: 1,
+        );
+        if (dupCheck.isNotEmpty) {
+          AppLogger.warning(
+            'Duplicate one-time task detected: "$trimmedTitle" on $targetDate. Insertion aborted.',
+            'TaskLocalDataSource',
+          );
+          return -1;
+        }
+      }
+
       final now = DateTime.now().toIso8601String();
-      final taskMap = task.copyWith(createdAt: now, updatedAt: now).toMap();
+      final taskMap = task
+          .copyWith(title: trimmedTitle, createdAt: now, updatedAt: now)
+          .toMap();
 
       final taskId = await txn.insert(DbConstants.tableTasks, taskMap);
 
@@ -74,8 +114,31 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
   @override
   Future<int> updateTask(TaskModel task) async {
     return await _dbHelper.runInTransaction<int>((txn) async {
+      final trimmedTitle = task.title.trim();
+
+      // Guard against renaming to another existing recurring task
+      if (task.isRecurring && task.id != null) {
+        final dupCheck = await txn.query(
+          DbConstants.tableTasks,
+          where:
+              'LOWER(TRIM(${DbConstants.colTaskTitle})) = LOWER(?) AND ${DbConstants.colTaskIsRecurring} = 1 AND ${DbConstants.colTaskId} != ?',
+          whereArgs: [trimmedTitle, task.id],
+          limit: 1,
+        );
+        if (dupCheck.isNotEmpty) {
+          AppLogger.warning(
+            'Duplicate recurring task detected on update: "$trimmedTitle". Update aborted.',
+            'TaskLocalDataSource',
+          );
+          return -1;
+        }
+      }
+
       final now = DateTime.now().toIso8601String();
-      final updatedTask = task.copyWith(updatedAt: now);
+      final updatedTask = task.copyWith(
+        title: trimmedTitle,
+        updatedAt: now,
+      );
 
       final count = await txn.update(
         DbConstants.tableTasks,
@@ -83,6 +146,37 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
         where: '${DbConstants.colTaskId} = ?',
         whereArgs: [task.id],
       );
+
+      // -------------------------------------------------------------
+      // 1️⃣  Handle a *change* in the `isRecurring` flag
+      // -------------------------------------------------------------
+      final oldTask = await txn.query(
+        DbConstants.tableTasks,
+        columns: [DbConstants.colTaskIsRecurring],
+        where: '${DbConstants.colTaskId} = ?',
+        whereArgs: [task.id],
+        limit: 1,
+      );
+      final wasRecurring =
+          (oldTask.first[DbConstants.colTaskIsRecurring] as int) == 1;
+
+      if (wasRecurring && !task.isRecurring) {
+        // The task just became *non‑recurring*: delete all future
+        // occurrences that are still pending (keep the already‑completed
+        // ones for history).
+        await txn.delete(
+          DbConstants.tableTaskOccurrences,
+          where:
+              '${DbConstants.colOccTaskId} = ? AND ${DbConstants.colOccDate} > ? AND ${DbConstants.colOccIsCompleted} = 0',
+          whereArgs: [task.id, AppDateUtils.todayIso],
+        );
+      }
+      // -------------------------------------------------------------
+      // 2️⃣  If the task turned *recurring* we don’t need to do anything
+      //     now – future occurrences will be created lazily when a date
+      //     is requested (the existing INSERT‑IGNORE logic already avoids
+      //     duplicates).
+      // -------------------------------------------------------------
 
       // If task is non-recurring and dueDate changed, update uncompleted occurrence date
       if (!task.isRecurring && task.dueDate != null && task.id != null) {

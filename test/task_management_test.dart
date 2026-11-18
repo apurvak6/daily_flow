@@ -268,6 +268,38 @@ void main() {
         expect(recheckToday.first.isCompleted, isTrue);
       },
     );
+
+    test('Prevents creating duplicate recurring task with same title', () async {
+      final today = AppDateUtils.todayIso;
+
+      final id1 = await taskRepository.createTask(
+        TaskModel(
+          title: 'Daily Meditation',
+          dueDate: today,
+          isRecurring: true,
+          recurrenceType: AppConstants.recurrenceDaily,
+        ),
+      );
+      expect(id1, greaterThan(0));
+
+      // Attempt creating same recurring task on another date with differing casing and whitespace
+      final id2 = await taskRepository.createTask(
+        TaskModel(
+          title: ' daily meditation ',
+          dueDate: '2026-11-20',
+          isRecurring: true,
+          recurrenceType: AppConstants.recurrenceDaily,
+        ),
+      );
+      expect(id2, equals(-1));
+
+      // Verify only 1 recurring task exists in the database
+      final allTasks = await taskRepository.getAllTasks();
+      final meditationTasks = allTasks
+          .where((t) => t.title.toLowerCase().contains('meditation'))
+          .toList();
+      expect(meditationTasks.length, 1);
+    });
   });
 
   group('Dashboard Metrics Calculation', () {

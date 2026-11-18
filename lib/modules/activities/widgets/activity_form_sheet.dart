@@ -220,390 +220,399 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     final isEditing = widget.activityToEdit != null;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(bottom: bottomInset),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.88,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.3,
+    return SafeArea(
+      bottom: true,
+      left: false,
+      right: false,
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.only(bottom: bottomInset),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.3,
+                  ),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
 
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  isEditing ? 'Edit Activity' : 'New Daily Activity',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isEditing ? 'Edit Activity' : 'New Daily Activity',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () => Get.back(),
-                  icon: const Icon(Icons.close),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Divider(height: 1),
+            const Divider(height: 1),
 
-          // Form body
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Preset suggestions chips (when creating new)
-                    if (!isEditing) ...[
+            // Form body
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Preset suggestions chips (when creating new)
+                      if (!isEditing) ...[
+                        Text(
+                          'Quick Suggestions',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 34,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _presets.length,
+                            separatorBuilder: (_, index) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final preset = _presets[index];
+                              return ActionChip(
+                                label: Text(preset),
+                                labelStyle: const TextStyle(fontSize: 12),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  setState(() {
+                                    _titleController.text = preset;
+                                    if (preset == 'Breakfast' ||
+                                        preset == 'Lunch' ||
+                                        preset == 'Dinner') {
+                                      _category = 'Food';
+                                    } else if (preset == 'Medication') {
+                                      _category = 'Medication';
+                                    } else if (preset == 'Exercise') {
+                                      _category = 'Fitness';
+                                    } else if (preset == 'Meetings') {
+                                      _category = 'Meetings';
+                                    } else if (preset == "Read Book") {
+                                      _category = "Personal";
+                                    } else if (preset == "Drink Water") {
+                                      _category = "Routine";
+                                    }
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Title Field
                       Text(
-                        'Quick Suggestions',
+                        'Activity Title *',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _titleController,
+                        maxLength: 60,
+                        decoration: InputDecoration(
+                          hintText: 'e.g., Morning Exercise, Take Vitamins',
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          prefixIcon: const Icon(Icons.fitness_center_rounded),
+                          counterText: '',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Activity title is required';
+                          }
+                          final trimmed = value.trim();
+                          if (trimmed.length < 3) {
+                            return 'Title must be at least 3 characters';
+                          }
+                          if (trimmed.length > 60) {
+                            return 'Title cannot exceed 60 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Category Selector
+                      Text(
+                        'Category',
                         style: theme.textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      SizedBox(
-                        height: 34,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _presets.length,
-                          separatorBuilder: (_, index) =>
-                              const SizedBox(width: 8),
-                          itemBuilder: (context, index) {
-                            final preset = _presets[index];
-                            return ActionChip(
-                              label: Text(preset),
-                              labelStyle: const TextStyle(fontSize: 12),
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () {
-                                setState(() {
-                                  _titleController.text = preset;
-                                  if (preset == 'Breakfast' ||
-                                      preset == 'Lunch' ||
-                                      preset == 'Dinner') {
-                                    _category = 'Food';
-                                  } else if (preset == 'Medication') {
-                                    _category = 'Medication';
-                                  } else if (preset == 'Exercise') {
-                                    _category = 'Fitness';
-                                  } else if (preset == 'Meetings') {
-                                    _category = 'Meetings';
-                                  } else if (preset == "Read Book") {
-                                    _category = "Personal";
-                                  } else if (preset == "Drink Water") {
-                                    _category = "Routine";
-                                  }
-                                });
-                              },
-                            );
-                          },
-                        ),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _activityCategories.map((cat) {
+                          final isSelected = _category == cat;
+                          return ChoiceChip(
+                            label: Text(cat),
+                            selected: isSelected,
+                            onSelected: (val) {
+                              if (val) setState(() => _category = cat);
+                            },
+                          );
+                        }).toList(),
                       ),
-                      const SizedBox(height: 16),
-                    ],
+                      const SizedBox(height: 20),
 
-                    // Title Field
-                    Text(
-                      'Activity Title *',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _titleController,
-                      maxLength: 60,
-                      decoration: InputDecoration(
-                        hintText: 'e.g., Morning Exercise, Take Vitamins',
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.5),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                      // Scheduled Time Picker
+                      Text(
+                        'Scheduled Time',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                        prefixIcon: const Icon(Icons.fitness_center_rounded),
-                        counterText: '',
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Activity title is required';
-                        }
-                        final trimmed = value.trim();
-                        if (trimmed.length < 3) {
-                          return 'Title must be at least 3 characters';
-                        }
-                        if (trimmed.length > 60) {
-                          return 'Title cannot exceed 60 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Category Selector
-                    Text(
-                      'Category',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _activityCategories.map((cat) {
-                        final isSelected = _category == cat;
-                        return ChoiceChip(
-                          label: Text(cat),
-                          selected: isSelected,
-                          onSelected: (val) {
-                            if (val) setState(() => _category = cat);
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Scheduled Time Picker
-                    Text(
-                      'Scheduled Time',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: _pickTime,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.access_time_rounded,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              _scheduledTime != null
-                                  ? _formatTimeOfDay(_scheduledTime!)
-                                  : 'Select Time',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              'Change',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: _pickTime,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.access_time_rounded,
                                 color: theme.colorScheme.primary,
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Frequency Selector
-                    Text(
-                      'Frequency',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ChoiceChip(
-                            label: const Center(child: Text('Every Day')),
-                            selected: _frequency == AppConstants.frequencyDaily,
-                            onSelected: (val) {
-                              if (val) {
-                                setState(
-                                  () =>
-                                      _frequency = AppConstants.frequencyDaily,
-                                );
-                              }
-                            },
+                              const SizedBox(width: 12),
+                              Text(
+                                _scheduledTime != null
+                                    ? _formatTimeOfDay(_scheduledTime!)
+                                    : 'Select Time',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                'Change',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ChoiceChip(
-                            label: const Center(child: Text('Weekdays Only')),
-                            selected:
-                                _frequency == AppConstants.frequencyWeekdays,
-                            onSelected: (val) {
-                              if (val) {
-                                setState(
-                                  () => _frequency =
-                                      AppConstants.frequencyWeekdays,
-                                );
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Reminders & Active Switches
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Column(
+                      const SizedBox(height: 20),
+
+                      // Frequency Selector
+                      Text(
+                        'Frequency',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
                         children: [
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Daily Reminder'),
-                            subtitle: const Text(
-                              'Receive a notification at scheduled time',
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(child: Text('Every Day')),
+                              selected:
+                                  _frequency == AppConstants.frequencyDaily,
+                              onSelected: (val) {
+                                if (val) {
+                                  setState(
+                                    () => _frequency =
+                                        AppConstants.frequencyDaily,
+                                  );
+                                }
+                              },
                             ),
-                            secondary: Icon(
-                              Icons.notifications_active_rounded,
-                              color: _isReminderEnabled
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurfaceVariant,
-                            ),
-                            value: _isReminderEnabled,
-                            onChanged: (val) =>
-                                setState(() => _isReminderEnabled = val),
                           ),
-                          if (isEditing) ...[
-                            const Divider(height: 1),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Active Status'),
-                              subtitle: const Text(
-                                'Inactive activities pause occurrence generation',
-                              ),
-                              secondary: Icon(
-                                _isActive
-                                    ? Icons.check_circle_rounded
-                                    : Icons.pause_circle_outline_rounded,
-                                color: _isActive
-                                    ? AppColors.completed
-                                    : theme.colorScheme.onSurfaceVariant,
-                              ),
-                              value: _isActive,
-                              onChanged: (val) =>
-                                  setState(() => _isActive = val),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(child: Text('Weekdays Only')),
+                              selected:
+                                  _frequency == AppConstants.frequencyWeekdays,
+                              onSelected: (val) {
+                                if (val) {
+                                  setState(
+                                    () => _frequency =
+                                        AppConstants.frequencyWeekdays,
+                                  );
+                                }
+                              },
                             ),
-                          ],
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Description (Optional)
-                    Text(
-                      'Description (Optional)',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _descController,
-                      maxLines: 2,
-                      maxLength: 120,
-                      decoration: InputDecoration(
-                        hintText: 'Additional details or notes...',
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.5),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                      // Reminders & Active Switches
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        counterText: '',
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Submit Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: FilledButton(
-                        onPressed: _isSaving ? null : _submitForm,
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                isEditing ? 'Save Changes' : 'Create Activity',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                        child: Column(
+                          children: [
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Daily Reminder'),
+                              subtitle: const Text(
+                                'Receive a notification at scheduled time',
                               ),
+                              secondary: Icon(
+                                Icons.notifications_active_rounded,
+                                color: _isReminderEnabled
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                              value: _isReminderEnabled,
+                              onChanged: (val) =>
+                                  setState(() => _isReminderEnabled = val),
+                            ),
+                            if (isEditing) ...[
+                              const Divider(height: 1),
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Active Status'),
+                                subtitle: const Text(
+                                  'Inactive activities pause occurrence generation',
+                                ),
+                                secondary: Icon(
+                                  _isActive
+                                      ? Icons.check_circle_rounded
+                                      : Icons.pause_circle_outline_rounded,
+                                  color: _isActive
+                                      ? AppColors.completed
+                                      : theme.colorScheme.onSurfaceVariant,
+                                ),
+                                value: _isActive,
+                                onChanged: (val) =>
+                                    setState(() => _isActive = val),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+
+                      // Description (Optional)
+                      Text(
+                        'Description (Optional)',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _descController,
+                        maxLines: 2,
+                        maxLength: 120,
+                        decoration: InputDecoration(
+                          hintText: 'Additional details or notes...',
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          counterText: '',
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Submit Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: FilledButton(
+                          onPressed: _isSaving ? null : _submitForm,
+                          style: FilledButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  isEditing
+                                      ? 'Save Changes'
+                                      : 'Create Activity',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

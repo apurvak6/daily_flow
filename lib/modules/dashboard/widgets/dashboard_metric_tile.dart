@@ -5,7 +5,7 @@ import '../../../core/widgets/custom_card.dart';
 class DashboardMetricTile extends StatelessWidget {
   final String label;
   final int count;
-  final IconData icon;
+  // final IconData icon;
   final Color color;
   final Color backgroundColor;
   final VoidCallback? onTap;
@@ -14,7 +14,7 @@ class DashboardMetricTile extends StatelessWidget {
     super.key,
     required this.label,
     required this.count,
-    required this.icon,
+    // required this.icon,
     required this.color,
     required this.backgroundColor,
     this.onTap,
@@ -38,9 +38,9 @@ class DashboardMetricTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 18, color: color),
+                // Icon(icon, size: 18, color: color),
                 Text(
                   '$count',
                   style: theme.textTheme.titleLarge?.copyWith(

@@ -102,7 +102,7 @@ class DailyProgressCard extends StatelessWidget {
               DashboardMetricTile(
                 label: 'Today',
                 count: totalCount,
-                icon: Icons.checklist_rounded,
+                // icon: Icons.checklist_rounded,
                 color: theme.colorScheme.primary,
                 backgroundColor: theme.colorScheme.primaryContainer.withValues(
                   alpha: 0.3,
@@ -112,7 +112,7 @@ class DailyProgressCard extends StatelessWidget {
               DashboardMetricTile(
                 label: 'Pending',
                 count: pendingCount,
-                icon: Icons.schedule_rounded,
+                // icon: Icons.schedule_rounded,
                 color: AppColors.pending,
                 backgroundColor: AppColors.pendingContainerLight.withValues(
                   alpha: 0.4,
@@ -123,7 +123,7 @@ class DailyProgressCard extends StatelessWidget {
               DashboardMetricTile(
                 label: 'Done',
                 count: completedCount,
-                icon: Icons.check_circle_outline_rounded,
+                // icon: Icons.check_circle_outline_rounded,
                 color: AppColors.completed,
                 backgroundColor: AppColors.completedContainerLight.withValues(
                   alpha: 0.4,
@@ -134,7 +134,7 @@ class DailyProgressCard extends StatelessWidget {
               DashboardMetricTile(
                 label: 'Overdue',
                 count: overdueCount,
-                icon: Icons.warning_amber_rounded,
+                // icon: Icons.warning_amber_rounded,
                 color: AppColors.overdue,
                 backgroundColor: AppColors.overdueContainerLight.withValues(
                   alpha: 0.4,

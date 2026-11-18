@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/date_utils.dart';
@@ -73,10 +74,15 @@ class TasksController extends GetxController {
   }
 
   /// Creates a new task and synchronizes the Dashboard.
+  /// Returns true if created successfully, false if duplicate or failed.
   Future<bool> createTask(TaskModel task) async {
     try {
       isLoading.value = true;
-      await taskRepository.createTask(task);
+      final taskId = await taskRepository.createTask(task);
+      if (taskId <= 0) {
+        return false;
+      }
+
       await loadTasksForSelectedDate();
 
       if (Get.isRegistered<DashboardController>()) {
@@ -95,7 +101,10 @@ class TasksController extends GetxController {
   Future<bool> updateTask(TaskModel task) async {
     try {
       isLoading.value = true;
-      await taskRepository.updateTask(task);
+      final count = await taskRepository.updateTask(task);
+      if (count <= 0) {
+        return false;
+      }
       await loadTasksForSelectedDate();
 
       if (Get.isRegistered<DashboardController>()) {

@@ -193,58 +193,6 @@ class SettingsView extends GetView<SettingsController> {
             ),
 
             const SizedBox(height: 12),
-
-            // Informational Box about Android permissions and background constraints
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.5,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.5,
-                  ),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        size: 18,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Notification & Background Notice',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '• Android 13+ requires explicit runtime notification permission.\n'
-                    '• Android 12+ requires exact alarm permission for precise minute-level reminders.\n'
-                    '• Alarms are restored automatically on device reboot via ScheduledNotificationBootReceiver.\n'
-                    '• Toggling notifications off cancels pending OS alerts but never modifies your task or habit data.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
             // 3. About Section
             Text(
               'About',
@@ -282,7 +230,7 @@ class SettingsView extends GetView<SettingsController> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Version 1.0.0 (Offline First & Local Scheduling)',
+                          'Version 1.0.0',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
