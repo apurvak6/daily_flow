@@ -14,6 +14,12 @@ abstract class TaskRepository {
     String startDate,
     String endDate,
   );
+  Future<List<TaskOccurrenceModel>> getOverdueOccurrences(String todayIso);
+  Future<List<TaskOccurrenceModel>> getUpcomingOccurrences(
+    String fromIsoDate, {
+    int limit = 10,
+  });
+  Future<int> getOverdueCount(String todayIso);
   Future<int> toggleOccurrenceCompletion(int occurrenceId, bool isCompleted);
   Future<Map<String, int>> getDailyStats(String isoDate);
 }
@@ -66,6 +72,26 @@ class TaskRepositoryImpl implements TaskRepository {
   }
 
   @override
+  Future<List<TaskOccurrenceModel>> getOverdueOccurrences(
+    String todayIso,
+  ) async {
+    return await _dataSource.getOverdueOccurrences(todayIso);
+  }
+
+  @override
+  Future<List<TaskOccurrenceModel>> getUpcomingOccurrences(
+    String fromIsoDate, {
+    int limit = 10,
+  }) async {
+    return await _dataSource.getUpcomingOccurrences(fromIsoDate, limit: limit);
+  }
+
+  @override
+  Future<int> getOverdueCount(String todayIso) async {
+    return await _dataSource.getOverdueCount(todayIso);
+  }
+
+  @override
   Future<int> toggleOccurrenceCompletion(
     int occurrenceId,
     bool isCompleted,
@@ -77,10 +103,12 @@ class TaskRepositoryImpl implements TaskRepository {
   Future<Map<String, int>> getDailyStats(String isoDate) async {
     final completed = await _dataSource.getCompletedCountForDate(isoDate);
     final total = await _dataSource.getTotalCountForDate(isoDate);
+    final overdue = await _dataSource.getOverdueCount(isoDate);
     return {
       'completed': completed,
       'total': total,
       'pending': total > completed ? total - completed : 0,
+      'overdue': overdue,
     };
   }
 }

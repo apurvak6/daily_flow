@@ -34,8 +34,8 @@ class AppConstants {
     'Work',
     'Personal',
     'Health',
-    'Learning',
-    'Finance',
+    'Food',
+    'Others',
   ];
 
   static const List<String> defaultActivityCategories = [

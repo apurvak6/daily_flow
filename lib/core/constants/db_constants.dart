@@ -3,7 +3,7 @@ class DbConstants {
   DbConstants._();
 
   static const String databaseName = 'daily_flow.db';
-  static const int databaseVersion = 1;
+  static const int databaseVersion = 2;
 
   // --- Table: tasks ---
   static const String tableTasks = 'tasks';
@@ -58,6 +58,15 @@ class DbConstants {
   static const String colActOccNotes = 'notes';
   static const String colActOccCreatedAt = 'created_at';
   static const String colActOccUpdatedAt = 'updated_at';
+
+  // --- Table: app_settings ---
+  static const String tableAppSettings = 'app_settings';
+  static const String colSettingKey = 'key';
+  static const String colSettingValue = 'value';
+
+  // --- Preference Keys ---
+  static const String prefThemeMode = 'theme_mode';
+  static const String prefNotifications = 'notifications_enabled';
 
   // --- Index Names ---
   static const String idxTaskOccDate = 'idx_task_occurrences_date';

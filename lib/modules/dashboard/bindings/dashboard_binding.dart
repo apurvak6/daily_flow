@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../../../data/repositories/activity_repository.dart';
+import '../../../data/repositories/settings_repository.dart';
 import '../../../data/repositories/task_repository.dart';
 import '../controllers/dashboard_controller.dart';
 import '../../tasks/controllers/tasks_controller.dart';
@@ -37,6 +38,12 @@ class DashboardBinding extends Bindings {
         activityRepository: Get.find<ActivityRepository>(),
       ),
     );
-    Get.lazyPut<SettingsController>(() => SettingsController());
+    Get.lazyPut<SettingsController>(
+      () => SettingsController(
+        settingsRepository: Get.isRegistered<SettingsRepository>()
+            ? Get.find<SettingsRepository>()
+            : null,
+      ),
+    );
   }
 }

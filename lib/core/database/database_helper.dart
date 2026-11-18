@@ -136,6 +136,14 @@ class DatabaseHelper {
       );
     ''');
 
+    // 5. Table: app_settings
+    batch.execute('''
+      CREATE TABLE IF NOT EXISTS ${DbConstants.tableAppSettings} (
+        ${DbConstants.colSettingKey} TEXT PRIMARY KEY,
+        ${DbConstants.colSettingValue} TEXT NOT NULL
+      );
+    ''');
+
     // Indexes for high-performance date-based queries
     batch.execute('''
       CREATE INDEX IF NOT EXISTS ${DbConstants.idxTasksDueDate} 
@@ -186,8 +194,14 @@ class DatabaseHelper {
 
   /// Version migration registry.
   static final Map<int, Future<void> Function(Database db)> _migrations = {
-    // Future migrations:
-    // 2: (db) async => await db.execute('ALTER TABLE ...'),
+    2: (db) async {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ${DbConstants.tableAppSettings} (
+          ${DbConstants.colSettingKey} TEXT PRIMARY KEY,
+          ${DbConstants.colSettingValue} TEXT NOT NULL
+        );
+      ''');
+    },
   };
 
   /// Helper to run an atomic transaction block.

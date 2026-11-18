@@ -15,9 +15,11 @@ class NotificationService extends GetxService {
   /// Initializes the local notification plugin across platforms.
   Future<NotificationService> init() async {
     try {
+      // Configures Android-specific notification initialization.
       const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
 
+      // Configures notification initialization for Apple platforms
       const DarwinInitializationSettings iosSettings =
           DarwinInitializationSettings(
             requestAlertPermission: false,

@@ -27,11 +27,12 @@ Most modern productivity and habit-tracking applications rely heavily on cloud s
 - [x] **Occurrence Isolation Engine**: Date-wise occurrence isolation preventing past/future state overwrite.
 - [x] **Material 3 Theming System**: Centralized Light and Dark themes with customizable status semantics.
 - [x] **5-Tab Responsive Shell Navigation**: Home, Tasks, Calendar, Reports, and Settings.
-- [ ] **Task Management (Pending Phase 2)**: Add, edit, delete, categorize, prioritize, and mark tasks complete.
-- [ ] **Daily Recurring Activities & Habits (Pending Phase 2)**: Habit progress logging with target units (e.g. glasses, minutes).
-- [ ] **Interactive Calendar View (Pending Phase 3)**: Date selection with event dots and timeline navigation (`table_calendar`).
-- [ ] **Visual Productivity Analytics (Pending Phase 4)**: Daily and weekly completion charts (`fl_chart`).
-- [ ] **Local Reminders & Notifications (Pending Phase 5)**: Offline scheduled alerts (`flutter_local_notifications`).
+- [x] **Premium Dashboard UI (Phase 2)**: Today's metrics, progress card, completion %, chronological timeline, and upcoming tasks.
+- [x] **Complete Task Management (Phase 2)**: Add, edit, delete, mark completed, recurrence (one-time & daily), date ribbon, search, category & status filters, with inline form validation.
+- [ ] **Daily Recurring Activities & Habits (Pending Phase 3)**: Habit progress logging with target units (e.g. glasses, minutes).
+- [ ] **Interactive Calendar View (Pending Phase 4)**: Date selection with event dots and timeline navigation (`table_calendar`).
+- [ ] **Visual Productivity Analytics (Pending Phase 5)**: Daily and weekly completion charts (`fl_chart`).
+- [ ] **Local Reminders & Notifications (Pending Phase 6)**: Offline scheduled alerts (`flutter_local_notifications`).
 
 ---
 
@@ -247,6 +248,15 @@ CREATE TABLE activity_occurrences (
 );
 ```
 
+#### 5. `app_settings` (v2 Migration)
+Key-value preference storage ensuring offline-first persistence without introducing external preferences packages.
+```sql
+CREATE TABLE app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+```
+
 ### High-Performance Date Indexes
 ```sql
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks (due_date);
@@ -312,6 +322,10 @@ erDiagram
         TEXT created_at
         TEXT updated_at
     }
+    app_settings {
+        TEXT key PK
+        TEXT value
+    }
 ```
 
 ---
@@ -332,13 +346,14 @@ sequenceDiagram
     OS->>Main: App Launch
     Main->>Main: WidgetsFlutterBinding.ensureInitialized()
     Main->>DB: DatabaseHelper.instance.database
-    DB->>DB: Open SQLite, enable PRAGMA foreign_keys, execute schema & indexes
+    DB->>DB: Open SQLite, enable PRAGMA foreign_keys, execute schema & migrations
+    Main->>DB: Query app_settings for saved theme mode
     Main->>NS: NotificationService().init()
     NS->>NS: Setup Android/Darwin notification channels
-    Main->>GetX: runApp(DailyFlowApp)
+    Main->>GetX: runApp(DailyFlowApp(initialThemeMode: savedMode))
     GetX->>GetX: InitialBinding().dependencies() (Inject DB, DataSources, Repositories)
     GetX->>GetX: Resolve initial route (Routes.dashboard)
-    GetX->>UI: Bind DashboardBinding & render DashboardView
+    GetX->>UI: Bind DashboardBinding & render DashboardView with saved ThemeMode
 ```
 
 ---
@@ -399,11 +414,12 @@ During development, the SQLite database is located at:
 | **Repository Contracts & Impls** | **Completed** | `TaskRepository` and `ActivityRepository` implemented and bound via GetX. |
 | **Material 3 Theming** | **Completed** | Light and Dark palettes, typography, rounded cards, and status colors configured. |
 | **5-Tab Navigation Shell** | **Completed** | `DashboardView` with Material 3 `NavigationBar` and initial tab screens. |
-| **Task Management UI & CRUD** | *Pending Phase 2* | Add/Edit/Delete dialogs and task occurrence lists. |
-| **Habit Tracking UI & Logging** | *Pending Phase 2* | Activity progress loggers and habit cards. |
-| **Calendar Timeline Screen** | *Pending Phase 3* | `TableCalendar` widget integration. |
-| **Reports & Charts Screen** | *Pending Phase 4* | `FLChart` weekly bar charts and completion statistics. |
-| **Notification Scheduling** | *Pending Phase 5* | Time-based reminders using `NotificationService`. |
+| **Premium Dashboard UI** | **Completed** | Today's progress card, completion %, metrics, chronological timeline, overdue alert banner, and upcoming tasks. |
+| **Task Management UI & CRUD** | **Completed** | Full task creation, editing, deletion, inline form validation, category/status filters, and search. |
+| **Habit Tracking UI & Logging** | *Pending Phase 3* | Activity progress loggers and habit cards. |
+| **Calendar Timeline Screen** | *Pending Phase 4* | `TableCalendar` widget integration. |
+| **Reports & Charts Screen** | *Pending Phase 5* | `FLChart` weekly bar charts and completion statistics. |
+| **Notification Scheduling** | *Pending Phase 6* | Time-based reminders using `NotificationService`. |
 
 ---
 

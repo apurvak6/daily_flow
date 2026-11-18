@@ -19,11 +19,17 @@ abstract class TaskLocalDataSource {
     String startDate,
     String endDate,
   );
+  Future<List<TaskOccurrenceModel>> getOverdueOccurrences(String todayIso);
+  Future<List<TaskOccurrenceModel>> getUpcomingOccurrences(
+    String fromIsoDate, {
+    int limit = 10,
+  });
   Future<int> insertOccurrence(TaskOccurrenceModel occurrence);
   Future<int> updateOccurrence(TaskOccurrenceModel occurrence);
   Future<int> setOccurrenceCompletion(int occurrenceId, bool isCompleted);
   Future<int> getCompletedCountForDate(String isoDate);
   Future<int> getTotalCountForDate(String isoDate);
+  Future<int> getOverdueCount(String todayIso);
 }
 
 /// Implementation of [TaskLocalDataSource] leveraging SQLite through [DatabaseHelper].
@@ -67,16 +73,33 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
 
   @override
   Future<int> updateTask(TaskModel task) async {
-    final db = await _dbHelper.database;
-    final now = DateTime.now().toIso8601String();
-    final updatedTask = task.copyWith(updatedAt: now);
+    return await _dbHelper.runInTransaction<int>((txn) async {
+      final now = DateTime.now().toIso8601String();
+      final updatedTask = task.copyWith(updatedAt: now);
 
-    return await db.update(
-      DbConstants.tableTasks,
-      updatedTask.toMap(),
-      where: '${DbConstants.colTaskId} = ?',
-      whereArgs: [task.id],
-    );
+      final count = await txn.update(
+        DbConstants.tableTasks,
+        updatedTask.toMap(),
+        where: '${DbConstants.colTaskId} = ?',
+        whereArgs: [task.id],
+      );
+
+      // If task is non-recurring and dueDate changed, update uncompleted occurrence date
+      if (!task.isRecurring && task.dueDate != null && task.id != null) {
+        await txn.update(
+          DbConstants.tableTaskOccurrences,
+          {
+            DbConstants.colOccDate: task.dueDate!,
+            DbConstants.colOccUpdatedAt: now,
+          },
+          where:
+              '${DbConstants.colOccTaskId} = ? AND ${DbConstants.colOccIsCompleted} = 0',
+          whereArgs: [task.id],
+        );
+      }
+
+      return count;
+    });
   }
 
   @override
@@ -229,6 +252,72 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
   }
 
   @override
+  Future<List<TaskOccurrenceModel>> getOverdueOccurrences(
+    String todayIso,
+  ) async {
+    final db = await _dbHelper.database;
+    final query =
+        '''
+      SELECT 
+        o.${DbConstants.colOccId},
+        o.${DbConstants.colOccTaskId},
+        o.${DbConstants.colOccDate},
+        o.${DbConstants.colOccIsCompleted},
+        o.${DbConstants.colOccCompletedAt},
+        o.${DbConstants.colOccNotes},
+        o.${DbConstants.colOccCreatedAt},
+        o.${DbConstants.colOccUpdatedAt},
+        t.${DbConstants.colTaskTitle} AS task_title,
+        t.${DbConstants.colTaskDescription} AS task_description,
+        t.${DbConstants.colTaskPriority},
+        t.${DbConstants.colTaskCategory},
+        t.${DbConstants.colTaskDueTime},
+        t.${DbConstants.colTaskIsRecurring}
+      FROM ${DbConstants.tableTaskOccurrences} o
+      INNER JOIN ${DbConstants.tableTasks} t ON o.${DbConstants.colOccTaskId} = t.${DbConstants.colTaskId}
+      WHERE o.${DbConstants.colOccDate} < ? AND o.${DbConstants.colOccIsCompleted} = 0
+      ORDER BY o.${DbConstants.colOccDate} DESC, t.${DbConstants.colTaskDueTime} ASC
+    ''';
+
+    final results = await db.rawQuery(query, [todayIso]);
+    return results.map(TaskOccurrenceModel.fromMap).toList();
+  }
+
+  @override
+  Future<List<TaskOccurrenceModel>> getUpcomingOccurrences(
+    String fromIsoDate, {
+    int limit = 10,
+  }) async {
+    final db = await _dbHelper.database;
+    final query =
+        '''
+      SELECT 
+        o.${DbConstants.colOccId},
+        o.${DbConstants.colOccTaskId},
+        o.${DbConstants.colOccDate},
+        o.${DbConstants.colOccIsCompleted},
+        o.${DbConstants.colOccCompletedAt},
+        o.${DbConstants.colOccNotes},
+        o.${DbConstants.colOccCreatedAt},
+        o.${DbConstants.colOccUpdatedAt},
+        t.${DbConstants.colTaskTitle} AS task_title,
+        t.${DbConstants.colTaskDescription} AS task_description,
+        t.${DbConstants.colTaskPriority},
+        t.${DbConstants.colTaskCategory},
+        t.${DbConstants.colTaskDueTime},
+        t.${DbConstants.colTaskIsRecurring}
+      FROM ${DbConstants.tableTaskOccurrences} o
+      INNER JOIN ${DbConstants.tableTasks} t ON o.${DbConstants.colOccTaskId} = t.${DbConstants.colTaskId}
+      WHERE o.${DbConstants.colOccDate} > ? AND o.${DbConstants.colOccIsCompleted} = 0
+      ORDER BY o.${DbConstants.colOccDate} ASC, t.${DbConstants.colTaskDueTime} ASC
+      LIMIT ?
+    ''';
+
+    final results = await db.rawQuery(query, [fromIsoDate, limit]);
+    return results.map(TaskOccurrenceModel.fromMap).toList();
+  }
+
+  @override
   Future<int> insertOccurrence(TaskOccurrenceModel occurrence) async {
     final db = await _dbHelper.database;
     return await db.insert(
@@ -338,6 +427,21 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
       WHERE ${DbConstants.colOccDate} = ?
       ''',
         [isoDate],
+      ),
+    );
+    return result ?? 0;
+  }
+
+  @override
+  Future<int> getOverdueCount(String todayIso) async {
+    final db = await _dbHelper.database;
+    final result = Sqflite.firstIntValue(
+      await db.rawQuery(
+        '''
+      SELECT COUNT(*) FROM ${DbConstants.tableTaskOccurrences}
+      WHERE ${DbConstants.colOccDate} < ? AND ${DbConstants.colOccIsCompleted} = 0
+      ''',
+        [todayIso],
       ),
     );
     return result ?? 0;

@@ -7,6 +7,7 @@ import 'core/constants/app_constants.dart';
 import 'core/database/database_helper.dart';
 import 'core/services/notification_service.dart';
 import 'core/utils/app_logger.dart';
+import 'data/datasources/settings_local_datasource.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,18 @@ Future<void> main() async {
     );
   }
 
+  // Load saved theme preference
+  ThemeMode initialThemeMode = ThemeMode.system;
+  try {
+    final settingsDataSource = SettingsLocalDataSourceImpl(
+      dbHelper: DatabaseHelper.instance,
+    );
+    initialThemeMode = await settingsDataSource.getThemeMode();
+    AppLogger.info('Loaded saved theme mode: ${initialThemeMode.name}', 'main');
+  } catch (e, stack) {
+    AppLogger.error('Failed to load theme preference', e, stack, 'main');
+  }
+
   // Initialize Local Notifications
   try {
     final notificationService = NotificationService();
@@ -32,12 +45,14 @@ Future<void> main() async {
     AppLogger.error('Failed to initialize notifications', e, stack, 'main');
   }
 
-  runApp(const DailyFlowApp());
+  runApp(DailyFlowApp(initialThemeMode: initialThemeMode));
 }
 
 /// Root widget configuring GetMaterialApp with routing, bindings, and Material 3 theming.
 class DailyFlowApp extends StatelessWidget {
-  const DailyFlowApp({super.key});
+  final ThemeMode initialThemeMode;
+
+  const DailyFlowApp({super.key, this.initialThemeMode = ThemeMode.system});
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +61,9 @@ class DailyFlowApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: initialThemeMode,
+      // Execute the dependency registration logic defined inside
+      // InitialBinding when the application starts.
       initialBinding: InitialBinding(),
       initialRoute: AppPages.initial,
       getPages: AppPages.routes,
