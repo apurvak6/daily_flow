@@ -25,6 +25,9 @@ abstract class ActivityLocalDataSource {
     int actualValue,
     int targetValue,
   );
+
+  /// Mark an occurrence as skipped. Updates notes to "Skipped" and clears completion flag.
+  Future<int> skipOccurrence(int occurrenceId);
   Future<int> getCompletedCountForDate(String isoDate);
   Future<int> getTotalCountForDate(String isoDate);
 }
@@ -246,6 +249,23 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
       {
         DbConstants.colActOccIsCompleted: isCompleted ? 1 : 0,
         DbConstants.colActOccCompletedAt: isCompleted ? now : null,
+        DbConstants.colActOccUpdatedAt: now,
+      },
+      where: '${DbConstants.colActOccId} = ?',
+      whereArgs: [occurrenceId],
+    );
+  }
+
+  @override
+  Future<int> skipOccurrence(int occurrenceId) async {
+    final db = await _dbHelper.database;
+    final now = DateTime.now().toIso8601String();
+    return await db.update(
+      DbConstants.tableActivityOccurrences,
+      {
+        DbConstants.colActOccIsCompleted: 0,
+        DbConstants.colActOccCompletedAt: null,
+        DbConstants.colActOccNotes: 'Skipped',
         DbConstants.colActOccUpdatedAt: now,
       },
       where: '${DbConstants.colActOccId} = ?',
