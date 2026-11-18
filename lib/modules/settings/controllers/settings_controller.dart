@@ -106,7 +106,12 @@ class SettingsController extends GetxController {
         }
         AppLogger.info('Enabled notifications globally', 'SettingsController');
       } catch (e, stack) {
-        AppLogger.error('Failed to enable notifications', e, stack, 'SettingsController');
+        AppLogger.error(
+          'Failed to enable notifications',
+          e,
+          stack,
+          'SettingsController',
+        );
       }
     } else {
       notificationsEnabled.value = false;
@@ -117,7 +122,12 @@ class SettingsController extends GetxController {
         }
         AppLogger.info('Disabled notifications globally', 'SettingsController');
       } catch (e, stack) {
-        AppLogger.error('Failed to disable notifications', e, stack, 'SettingsController');
+        AppLogger.error(
+          'Failed to disable notifications',
+          e,
+          stack,
+          'SettingsController',
+        );
       }
     }
   }
@@ -134,7 +144,8 @@ class SettingsController extends GetxController {
   /// Requests exact alarms permission on Android 12+.
   Future<void> requestExactAlarmsPermission() async {
     if (Get.isRegistered<NotificationService>()) {
-      final granted = await NotificationService.to.requestExactAlarmsPermission();
+      final granted = await NotificationService.to
+          .requestExactAlarmsPermission();
       exactAlarmsGranted.value = granted;
     }
   }

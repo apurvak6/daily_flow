@@ -35,11 +35,12 @@ class ActivityRepositoryImpl implements ActivityRepository {
   ActivityRepositoryImpl({
     ActivityLocalDataSource? dataSource,
     NotificationService? notificationService,
-  })  : _dataSource = dataSource ?? ActivityLocalDataSourceImpl(),
-        _notificationService = notificationService ??
-            (Get.isRegistered<NotificationService>()
-                ? Get.find<NotificationService>()
-                : null);
+  }) : _dataSource = dataSource ?? ActivityLocalDataSourceImpl(),
+       _notificationService =
+           notificationService ??
+           (Get.isRegistered<NotificationService>()
+               ? Get.find<NotificationService>()
+               : null);
 
   @override
   Future<int> createActivity(ActivityModel activity) async {

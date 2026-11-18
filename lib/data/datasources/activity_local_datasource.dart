@@ -20,7 +20,9 @@ abstract class ActivityLocalDataSource {
     String endDate,
   );
   Future<int> setOccurrenceStatus(int occurrenceId, String status);
+  // Set completion flag for an occurrence (true = completed, false = pending).
   Future<int> setOccurrenceCompletion(int occurrenceId, bool isCompleted);
+  Future<int> insertOccurrence(ActivityOccurrenceModel occurrence);
   Future<int> skipOccurrence(int occurrenceId);
   Future<int> updateOccurrenceValue(
     int occurrenceId,
@@ -31,6 +33,8 @@ abstract class ActivityLocalDataSource {
   Future<int> getSkippedCountForDate(String isoDate);
   Future<int> getTotalCountForDate(String isoDate);
   Future<Map<String, int>> getDailyStats(String isoDate);
+  // New method for category summary
+  Future<List<Map<String, dynamic>>> getCategorySummary();
 }
 
 /// Implementation of [ActivityLocalDataSource] leveraging SQLite through [DatabaseHelper].
@@ -386,5 +390,35 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
       'skipped': skipped,
       'pending': pending,
     };
+  }
+
+  /// Category‑wise aggregation.
+  /// Returns raw rows that the service will map into a richer structure.
+  @override
+  Future<List<Map<String, dynamic>>> getCategorySummary() async {
+    final db = await _dbHelper.database;
+    final query =
+        '''
+      SELECT 
+        a.${DbConstants.colActCategory} AS category,
+        COUNT(o.${DbConstants.colActOccId}) AS total,
+        SUM(CASE WHEN o.${DbConstants.colActOccIsCompleted} = 1 OR o.${DbConstants.colActOccStatus} = 'completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN o.${DbConstants.colActOccStatus} = 'skipped' OR o.${DbConstants.colActOccNotes} = 'Skipped' THEN 1 ELSE 0 END) AS skipped
+      FROM ${DbConstants.tableActivityOccurrences} o
+      INNER JOIN ${DbConstants.tableActivities} a ON o.${DbConstants.colActOccActivityId} = a.${DbConstants.colActId}
+      GROUP BY a.${DbConstants.colActCategory}
+    ''';
+    final results = await db.rawQuery(query);
+    return results;
+  }
+
+  @override
+  Future<int> insertOccurrence(ActivityOccurrenceModel occurrence) async {
+    final db = await _dbHelper.database;
+    return await db.insert(
+      DbConstants.tableActivityOccurrences,
+      occurrence.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
   }
 }

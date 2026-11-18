@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/reporting_service.dart';
 import '../../data/datasources/activity_local_datasource.dart';
 import '../../data/datasources/settings_local_datasource.dart';
 import '../../data/datasources/task_local_datasource.dart';
@@ -41,6 +42,14 @@ class InitialBinding extends Bindings {
     Get.lazyPut<ActivityRepository>(
       () => ActivityRepositoryImpl(
         dataSource: Get.find<ActivityLocalDataSource>(),
+      ),
+      fenix: true,
+    );
+    // 4. Reporting Service
+    Get.lazyPut<ReportingService>(
+      () => ReportingService(
+        taskDataSource: Get.find<TaskLocalDataSource>(),
+        activityDataSource: Get.find<ActivityLocalDataSource>(),
       ),
       fenix: true,
     );

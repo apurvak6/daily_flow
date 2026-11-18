@@ -37,7 +37,10 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _isInitialized) {
-      AppLogger.info('App resumed: reconciling notifications', 'NotificationService');
+      AppLogger.info(
+        'App resumed: reconciling notifications',
+        'NotificationService',
+      );
       reconcileNotifications();
     }
   }
@@ -73,9 +76,10 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
       );
 
       // 4. Create Android Notification Channel
-      final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-      >();
+      final androidImpl = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       await androidImpl?.createNotificationChannel(
         const AndroidNotificationChannel(
           AppConstants.notificationChannelId,
@@ -129,7 +133,12 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
         tz.setLocalLocation(tz.getLocation('UTC'));
       }
     } catch (e, stack) {
-      AppLogger.error('Failed to configure local time zone', e, stack, 'NotificationService');
+      AppLogger.error(
+        'Failed to configure local time zone',
+        e,
+        stack,
+        'NotificationService',
+      );
     }
   }
 
@@ -163,9 +172,10 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
   /// Resolves the Android schedule mode based on exact alarm permission.
   Future<AndroidScheduleMode> _resolveScheduleMode() async {
     try {
-      final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-      >();
+      final androidImpl = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (androidImpl != null) {
         final canExact = await androidImpl.canScheduleExactNotifications();
         if (canExact == true) {
@@ -173,7 +183,10 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      AppLogger.warning('Could not verify exact alarm permission: $e', 'NotificationService');
+      AppLogger.warning(
+        'Could not verify exact alarm permission: $e',
+        'NotificationService',
+      );
     }
     return AndroidScheduleMode.inexactAllowWhileIdle;
   }
@@ -261,7 +274,8 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
       );
 
       final reminderTimeDisplay = task.reminderTime ?? task.dueTime ?? '';
-      final body = task.description != null && task.description!.trim().isNotEmpty
+      final body =
+          task.description != null && task.description!.trim().isNotEmpty
           ? '${task.description} (Due at $reminderTimeDisplay)'
           : 'Task reminder: Due at $reminderTimeDisplay';
 
@@ -286,7 +300,12 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
       );
       return true;
     } catch (e, stack) {
-      AppLogger.error('Failed to schedule task notification #${task.id}', e, stack, 'NotificationService');
+      AppLogger.error(
+        'Failed to schedule task notification #${task.id}',
+        e,
+        stack,
+        'NotificationService',
+      );
       return false;
     }
   }
@@ -297,7 +316,9 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
 
     final notifId = AppConstants.notificationActivityBaseId + activity.id!;
 
-    if (!activity.isActive || !activity.isReminderEnabled || activity.scheduledTime == null) {
+    if (!activity.isActive ||
+        !activity.isReminderEnabled ||
+        activity.scheduledTime == null) {
       await cancelNotification(notifId);
       return false;
     }
@@ -339,7 +360,8 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
         presentSound: true,
       );
 
-      final body = 'Daily routine reminder for ${activity.title} at ${activity.scheduledTime}';
+      final body =
+          'Daily routine reminder for ${activity.title} at ${activity.scheduledTime}';
 
       await _notificationsPlugin.zonedSchedule(
         id: notifId,
@@ -362,7 +384,12 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
       );
       return true;
     } catch (e, stack) {
-      AppLogger.error('Failed to schedule activity notification #${activity.id}', e, stack, 'NotificationService');
+      AppLogger.error(
+        'Failed to schedule activity notification #${activity.id}',
+        e,
+        stack,
+        'NotificationService',
+      );
       return false;
     }
   }
@@ -374,7 +401,9 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
 
   /// Cancels a scheduled activity notification.
   Future<void> cancelActivityNotification(int activityId) async {
-    await cancelNotification(AppConstants.notificationActivityBaseId + activityId);
+    await cancelNotification(
+      AppConstants.notificationActivityBaseId + activityId,
+    );
   }
 
   /// Cancels a notification by integer ID.
@@ -382,7 +411,12 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
     try {
       await _notificationsPlugin.cancel(id: id);
     } catch (e) {
-      AppLogger.error('Failed to cancel notification #$id', e, null, 'NotificationService');
+      AppLogger.error(
+        'Failed to cancel notification #$id',
+        e,
+        null,
+        'NotificationService',
+      );
     }
   }
 
@@ -392,7 +426,12 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
       await _notificationsPlugin.cancelAll();
       AppLogger.info('All notifications cancelled', 'NotificationService');
     } catch (e) {
-      AppLogger.error('Failed to cancel all notifications', e, null, 'NotificationService');
+      AppLogger.error(
+        'Failed to cancel all notifications',
+        e,
+        null,
+        'NotificationService',
+      );
     }
   }
 
@@ -401,7 +440,12 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
     try {
       return await _notificationsPlugin.pendingNotificationRequests();
     } catch (e) {
-      AppLogger.error('Failed to fetch pending notifications', e, null, 'NotificationService');
+      AppLogger.error(
+        'Failed to fetch pending notifications',
+        e,
+        null,
+        'NotificationService',
+      );
       return [];
     }
   }
@@ -439,7 +483,9 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
           : ActivityRepositoryImpl();
 
       final allTasks = await taskRepo.getAllTasks();
-      final allActivities = await activityRepo.getAllActivities(onlyActive: true);
+      final allActivities = await activityRepo.getAllActivities(
+        onlyActive: true,
+      );
 
       final Set<int> expectedNotificationIds = {};
       final List<TaskModel> tasksToSchedule = [];
@@ -497,13 +543,17 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
       }
 
       // Check pending notifications from OS
-      final pendingRequests = await _notificationsPlugin.pendingNotificationRequests();
+      final pendingRequests = await _notificationsPlugin
+          .pendingNotificationRequests();
       final pendingIds = pendingRequests.map((r) => r.id).toSet();
 
       // Cancel obsolete notifications
       for (final id in pendingIds) {
         if (!expectedNotificationIds.contains(id)) {
-          AppLogger.info('Canceling obsolete pending notification #$id', 'NotificationService');
+          AppLogger.info(
+            'Canceling obsolete pending notification #$id',
+            'NotificationService',
+          );
           await cancelNotification(id);
         }
       }
@@ -561,16 +611,18 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
   /// Checks if notifications are permitted on the OS level.
   Future<bool> areNotificationsEnabled() async {
     try {
-      final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-      >();
+      final androidImpl = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (androidImpl != null) {
         return (await androidImpl.areNotificationsEnabled()) ?? true;
       }
 
-      final iosImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-      >();
+      final iosImpl = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >();
       if (iosImpl != null) {
         final status = await iosImpl.checkPermissions();
         return status?.isEnabled ?? true;
@@ -584,9 +636,10 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
   /// Checks if exact alarms are allowed on Android 12+.
   Future<bool> canScheduleExactAlarms() async {
     try {
-      final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-      >();
+      final androidImpl = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (androidImpl != null) {
         return (await androidImpl.canScheduleExactNotifications()) ?? true;
       }
@@ -599,9 +652,10 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
   /// Requests exact alarms permission on Android 13+.
   Future<bool> requestExactAlarmsPermission() async {
     try {
-      final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-      >();
+      final androidImpl = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (androidImpl != null) {
         return (await androidImpl.requestExactAlarmsPermission()) ?? false;
       }
@@ -614,29 +668,37 @@ class NotificationService extends GetxService with WidgetsBindingObserver {
   /// Opens the device's native application settings screen for notifications.
   Future<void> openNotificationSettings() async {
     try {
-      final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-      >();
+      final androidImpl = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (androidImpl != null) {
         await androidImpl.openAppNotificationSettings();
         return;
       }
-      final iosImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-      >();
+      final iosImpl = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >();
       if (iosImpl != null) {
         await iosImpl.openAppNotificationSettings();
         return;
       }
-      final macosImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
-          MacOSFlutterLocalNotificationsPlugin
-      >();
+      final macosImpl = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin
+          >();
       if (macosImpl != null) {
         await macosImpl.openAppNotificationSettings();
         return;
       }
     } catch (e) {
-      AppLogger.error('Could not open app notification settings', e, null, 'NotificationService');
+      AppLogger.error(
+        'Could not open app notification settings',
+        e,
+        null,
+        'NotificationService',
+      );
     }
   }
 

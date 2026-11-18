@@ -34,17 +34,20 @@ class TaskRepositoryImpl implements TaskRepository {
   TaskRepositoryImpl({
     TaskLocalDataSource? dataSource,
     NotificationService? notificationService,
-  })  : _dataSource = dataSource ?? TaskLocalDataSourceImpl(),
-        _notificationService = notificationService ??
-            (Get.isRegistered<NotificationService>()
-                ? Get.find<NotificationService>()
-                : null);
+  }) : _dataSource = dataSource ?? TaskLocalDataSourceImpl(),
+       _notificationService =
+           notificationService ??
+           (Get.isRegistered<NotificationService>()
+               ? Get.find<NotificationService>()
+               : null);
 
   @override
   Future<int> createTask(TaskModel task) async {
     final id = await _dataSource.insertTask(task);
     if (id > 0 && _notificationService != null) {
-      await _notificationService.scheduleTaskNotification(task.copyWith(id: id));
+      await _notificationService.scheduleTaskNotification(
+        task.copyWith(id: id),
+      );
     }
     return id;
   }

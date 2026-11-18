@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:daily_flow/core/constants/app_constants.dart';
 import 'package:daily_flow/data/models/task_occurrence_model.dart';
 import 'package:daily_flow/data/models/activity_occurrence_model.dart';
@@ -45,12 +46,28 @@ class MockTaskRepository extends Fake implements TaskRepository {
   Future<int> getOverdueCount(String todayIso) async {
     return 0;
   }
+
+  @override
+  Future<List<TaskOccurrenceModel>> getOccurrencesBetween(
+    String startDate,
+    String endDate,
+  ) async {
+    return [];
+  }
 }
 
 class MockActivityRepository extends Fake implements ActivityRepository {
   @override
   Future<List<ActivityOccurrenceModel>> getOccurrencesForDate(
     String isoDate,
+  ) async {
+    return [];
+  }
+
+  @override
+  Future<List<ActivityOccurrenceModel>> getOccurrencesBetween(
+    String startDate,
+    String endDate,
   ) async {
     return [];
   }
@@ -71,6 +88,11 @@ class MockSettingsRepository extends Fake implements SettingsRepository {
 }
 
 void main() {
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  });
+
   tearDown(() {
     Get.reset();
   });

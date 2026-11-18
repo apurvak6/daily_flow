@@ -56,7 +56,9 @@ void main() {
               return null;
             case 'zonedSchedule':
               final args = Map<String, dynamic>.from(call.arguments as Map);
-              mockPendingNotifications.removeWhere((n) => n['id'] == args['id']);
+              mockPendingNotifications.removeWhere(
+                (n) => n['id'] == args['id'],
+              );
               mockPendingNotifications.add({
                 'id': args['id'],
                 'title': args['title'],
@@ -65,7 +67,9 @@ void main() {
               });
               return null;
             case 'cancel':
-              final id = call.arguments is Map ? (call.arguments['id'] as int) : (call.arguments as int);
+              final id = call.arguments is Map
+                  ? (call.arguments['id'] as int)
+                  : (call.arguments as int);
               mockPendingNotifications.removeWhere((n) => n['id'] == id);
               return null;
             case 'cancelAll':
@@ -107,8 +111,12 @@ void main() {
     Get.put<NotificationService>(notificationService, permanent: true);
 
     final taskDs = TaskLocalDataSourceImpl(dbHelper: DatabaseHelper.instance);
-    final actDs = ActivityLocalDataSourceImpl(dbHelper: DatabaseHelper.instance);
-    final setDs = SettingsLocalDataSourceImpl(dbHelper: DatabaseHelper.instance);
+    final actDs = ActivityLocalDataSourceImpl(
+      dbHelper: DatabaseHelper.instance,
+    );
+    final setDs = SettingsLocalDataSourceImpl(
+      dbHelper: DatabaseHelper.instance,
+    );
 
     taskRepository = TaskRepositoryImpl(
       dataSource: taskDs,
@@ -133,26 +141,32 @@ void main() {
   });
 
   group('Phase 4: Time Parsing & ID Generation Logic', () {
-    test('parseTimeString correctly parses 12-hour AM/PM and 24-hour formats', () {
-      expect(NotificationService.parseTimeString('08:00 AM'), (8, 0));
-      expect(NotificationService.parseTimeString('8:30 PM'), (20, 30));
-      expect(NotificationService.parseTimeString('12:00 PM'), (12, 0));
-      expect(NotificationService.parseTimeString('12:00 AM'), (0, 0));
-      expect(NotificationService.parseTimeString('14:45'), (14, 45));
-      expect(NotificationService.parseTimeString(''), isNull);
-      expect(NotificationService.parseTimeString(null), isNull);
-    });
+    test(
+      'parseTimeString correctly parses 12-hour AM/PM and 24-hour formats',
+      () {
+        expect(NotificationService.parseTimeString('08:00 AM'), (8, 0));
+        expect(NotificationService.parseTimeString('8:30 PM'), (20, 30));
+        expect(NotificationService.parseTimeString('12:00 PM'), (12, 0));
+        expect(NotificationService.parseTimeString('12:00 AM'), (0, 0));
+        expect(NotificationService.parseTimeString('14:45'), (14, 45));
+        expect(NotificationService.parseTimeString(''), isNull);
+        expect(NotificationService.parseTimeString(null), isNull);
+      },
+    );
 
-    test('Task and Activity notification IDs are unique and non-overlapping', () {
-      const taskId = 42;
-      const actId = 42;
-      final taskNotifId = AppConstants.notificationTaskBaseId + taskId;
-      final actNotifId = AppConstants.notificationActivityBaseId + actId;
+    test(
+      'Task and Activity notification IDs are unique and non-overlapping',
+      () {
+        const taskId = 42;
+        const actId = 42;
+        final taskNotifId = AppConstants.notificationTaskBaseId + taskId;
+        final actNotifId = AppConstants.notificationActivityBaseId + actId;
 
-      expect(taskNotifId, 1000042);
-      expect(actNotifId, 2000042);
-      expect(taskNotifId != actNotifId, isTrue);
-    });
+        expect(taskNotifId, 1000042);
+        expect(actNotifId, 2000042);
+        expect(taskNotifId != actNotifId, isTrue);
+      },
+    );
   });
 
   group('Phase 4: Scheduling Tasks & Activities', () {
@@ -175,9 +189,15 @@ void main() {
       final scheduled = methodCalls.where((c) => c.method == 'zonedSchedule');
       expect(scheduled, isNotEmpty);
       final lastCall = scheduled.last;
-      expect(lastCall.arguments['id'], AppConstants.notificationTaskBaseId + taskId);
+      expect(
+        lastCall.arguments['id'],
+        AppConstants.notificationTaskBaseId + taskId,
+      );
       expect(lastCall.arguments['title'], 'Project Deadline');
-      expect(lastCall.arguments['matchDateTimeComponents'], isNull); // One-time task
+      expect(
+        lastCall.arguments['matchDateTimeComponents'],
+        isNull,
+      ); // One-time task
     });
 
     test('Scenario 2: Schedule a daily recurring task reminder', () async {
@@ -195,7 +215,10 @@ void main() {
       final scheduled = methodCalls.where((c) => c.method == 'zonedSchedule');
       expect(scheduled, isNotEmpty);
       final lastCall = scheduled.last;
-      expect(lastCall.arguments['id'], AppConstants.notificationTaskBaseId + taskId);
+      expect(
+        lastCall.arguments['id'],
+        AppConstants.notificationTaskBaseId + taskId,
+      );
       expect(lastCall.arguments['title'], 'Daily Standup Call');
       // DateTimeComponents.time index
       expect(lastCall.arguments['matchDateTimeComponents'], 0);
@@ -215,39 +238,50 @@ void main() {
       final scheduled = methodCalls.where((c) => c.method == 'zonedSchedule');
       expect(scheduled, isNotEmpty);
       final lastCall = scheduled.last;
-      expect(lastCall.arguments['id'], AppConstants.notificationActivityBaseId + actId);
+      expect(
+        lastCall.arguments['id'],
+        AppConstants.notificationActivityBaseId + actId,
+      );
       expect(lastCall.arguments['title'], 'Morning Yoga');
       expect(lastCall.arguments['matchDateTimeComponents'], 0);
     });
   });
 
   group('Phase 4: Edit, Deactivate, & Delete Scenarios', () {
-    test('Scenario 4: Edit scheduled task time reschedules notification with updated time', () async {
-      final futureDate = DateTime.now().add(const Duration(days: 2));
-      final dateStr =
-          "${futureDate.year}-${futureDate.month.toString().padLeft(2, '0')}-${futureDate.day.toString().padLeft(2, '0')}";
+    test(
+      'Scenario 4: Edit scheduled task time reschedules notification with updated time',
+      () async {
+        final futureDate = DateTime.now().add(const Duration(days: 2));
+        final dateStr =
+            "${futureDate.year}-${futureDate.month.toString().padLeft(2, '0')}-${futureDate.day.toString().padLeft(2, '0')}";
 
-      final task = TaskModel(
-        title: 'Doctor Appointment',
-        dueDate: dateStr,
-        dueTime: '10:00 AM',
-        reminderTime: '10:00 AM',
-      );
-      final taskId = await taskRepository.createTask(task);
+        final task = TaskModel(
+          title: 'Doctor Appointment',
+          dueDate: dateStr,
+          dueTime: '10:00 AM',
+          reminderTime: '10:00 AM',
+        );
+        final taskId = await taskRepository.createTask(task);
 
-      // Edit task to 02:00 PM
-      final updatedTask = task.copyWith(
-        id: taskId,
-        dueTime: '02:00 PM',
-        reminderTime: '02:00 PM',
-      );
-      await taskRepository.updateTask(updatedTask);
+        // Edit task to 02:00 PM
+        final updatedTask = task.copyWith(
+          id: taskId,
+          dueTime: '02:00 PM',
+          reminderTime: '02:00 PM',
+        );
+        await taskRepository.updateTask(updatedTask);
 
-      final scheduled = methodCalls.where((c) => c.method == 'zonedSchedule').toList();
-      expect(scheduled.length, 2);
-      expect(scheduled.last.arguments['id'], AppConstants.notificationTaskBaseId + taskId);
-      expect(scheduled.last.arguments['body'], contains('02:00 PM'));
-    });
+        final scheduled = methodCalls
+            .where((c) => c.method == 'zonedSchedule')
+            .toList();
+        expect(scheduled.length, 2);
+        expect(
+          scheduled.last.arguments['id'],
+          AppConstants.notificationTaskBaseId + taskId,
+        );
+        expect(scheduled.last.arguments['body'], contains('02:00 PM'));
+      },
+    );
 
     test('Scenario 5: Delete task cancels its pending notification', () async {
       final task = TaskModel(
@@ -258,14 +292,29 @@ void main() {
       );
       final taskId = await taskRepository.createTask(task);
 
-      expect(mockPendingNotifications.any((n) => n['id'] == AppConstants.notificationTaskBaseId + taskId), isTrue);
+      expect(
+        mockPendingNotifications.any(
+          (n) => n['id'] == AppConstants.notificationTaskBaseId + taskId,
+        ),
+        isTrue,
+      );
 
       await taskRepository.deleteTask(taskId);
 
-      final cancelCalls = methodCalls.where((c) => c.method == 'cancel').toList();
+      final cancelCalls = methodCalls
+          .where((c) => c.method == 'cancel')
+          .toList();
       expect(cancelCalls, isNotEmpty);
-      expect(cancelCalls.last.arguments['id'], AppConstants.notificationTaskBaseId + taskId);
-      expect(mockPendingNotifications.any((n) => n['id'] == AppConstants.notificationTaskBaseId + taskId), isFalse);
+      expect(
+        cancelCalls.last.arguments['id'],
+        AppConstants.notificationTaskBaseId + taskId,
+      );
+      expect(
+        mockPendingNotifications.any(
+          (n) => n['id'] == AppConstants.notificationTaskBaseId + taskId,
+        ),
+        isFalse,
+      );
     });
 
     test('Scenario 6: Disabling reminder cancels the notification', () async {
@@ -281,9 +330,14 @@ void main() {
       final updatedAct = activity.copyWith(id: actId, isReminderEnabled: false);
       await activityRepository.updateActivity(updatedAct);
 
-      final cancelCalls = methodCalls.where((c) => c.method == 'cancel').toList();
+      final cancelCalls = methodCalls
+          .where((c) => c.method == 'cancel')
+          .toList();
       expect(cancelCalls, isNotEmpty);
-      expect(cancelCalls.last.arguments['id'], AppConstants.notificationActivityBaseId + actId);
+      expect(
+        cancelCalls.last.arguments['id'],
+        AppConstants.notificationActivityBaseId + actId,
+      );
     });
   });
 
@@ -291,100 +345,115 @@ void main() {
     test('Scenario 7: Permission denied flow handled gracefully', () async {
       mockPermissionGranted = false;
 
-      final controller = SettingsController(settingsRepository: settingsRepository);
+      final controller = SettingsController(
+        settingsRepository: settingsRepository,
+      );
       await controller.toggleNotifications(true);
 
       expect(controller.notificationsEnabled.value, isFalse);
       expect(await settingsRepository.areNotificationsEnabled(), isFalse);
     });
 
-    test('Scenario 8 & 9: Reconciliation cancels obsolete and schedules missing notifications', () async {
-      // 1. Insert an active task with reminder
-      final futureDate = DateTime.now().add(const Duration(days: 4));
-      final dateStr =
-          "${futureDate.year}-${futureDate.month.toString().padLeft(2, '0')}-${futureDate.day.toString().padLeft(2, '0')}";
+    test(
+      'Scenario 8 & 9: Reconciliation cancels obsolete and schedules missing notifications',
+      () async {
+        // 1. Insert an active task with reminder
+        final futureDate = DateTime.now().add(const Duration(days: 4));
+        final dateStr =
+            "${futureDate.year}-${futureDate.month.toString().padLeft(2, '0')}-${futureDate.day.toString().padLeft(2, '0')}";
 
-      final activeTask = TaskModel(
-        title: 'Active Future Task',
-        dueDate: dateStr,
-        dueTime: '08:00 AM',
-        reminderTime: '08:00 AM',
-      );
-      final taskId = await taskRepository.createTask(activeTask);
+        final activeTask = TaskModel(
+          title: 'Active Future Task',
+          dueDate: dateStr,
+          dueTime: '08:00 AM',
+          reminderTime: '08:00 AM',
+        );
+        final taskId = await taskRepository.createTask(activeTask);
 
-      // 2. Put an obsolete ghost notification in mock OS pending list
-      const obsoleteNotifId = 9999999;
-      mockPendingNotifications.add({
-        'id': obsoleteNotifId,
-        'title': 'Deleted Ghost Task',
-        'body': 'Old',
-        'payload': null,
-      });
+        // 2. Put an obsolete ghost notification in mock OS pending list
+        const obsoleteNotifId = 9999999;
+        mockPendingNotifications.add({
+          'id': obsoleteNotifId,
+          'title': 'Deleted Ghost Task',
+          'body': 'Old',
+          'payload': null,
+        });
 
-      // 3. Clear the active task from mock pending list to simulate missing schedule
-      mockPendingNotifications.removeWhere((n) => n['id'] == AppConstants.notificationTaskBaseId + taskId);
+        // 3. Clear the active task from mock pending list to simulate missing schedule
+        mockPendingNotifications.removeWhere(
+          (n) => n['id'] == AppConstants.notificationTaskBaseId + taskId,
+        );
 
-      // 4. Run reconciliation
-      await notificationService.reconcileNotifications();
+        // 4. Run reconciliation
+        await notificationService.reconcileNotifications();
 
-      // Obsolete notification should be cancelled
-      final cancelCalls = methodCalls.where(
-        (c) =>
-            c.method == 'cancel' &&
-            (c.arguments is Map
-                ? c.arguments['id'] == obsoleteNotifId
-                : c.arguments == obsoleteNotifId),
-      );
-      expect(cancelCalls, isNotEmpty);
+        // Obsolete notification should be cancelled
+        final cancelCalls = methodCalls.where(
+          (c) =>
+              c.method == 'cancel' &&
+              (c.arguments is Map
+                  ? c.arguments['id'] == obsoleteNotifId
+                  : c.arguments == obsoleteNotifId),
+        );
+        expect(cancelCalls, isNotEmpty);
 
-      // Active task should be scheduled
-      final scheduledActive = mockPendingNotifications.where(
-        (n) => n['id'] == AppConstants.notificationTaskBaseId + taskId,
-      );
-      expect(scheduledActive, isNotEmpty);
-    });
+        // Active task should be scheduled
+        final scheduledActive = mockPendingNotifications.where(
+          (n) => n['id'] == AppConstants.notificationTaskBaseId + taskId,
+        );
+        expect(scheduledActive, isNotEmpty);
+      },
+    );
 
-    test('Scenario 10: Duplicate notifications are prevented via deterministic ID mapping', () async {
-      final activity = ActivityModel(
-        title: 'Drink Water',
-        scheduledTime: '10:00 AM',
-        isReminderEnabled: true,
-        isActive: true,
-      );
-      final actId = await activityRepository.createActivity(activity);
+    test(
+      'Scenario 10: Duplicate notifications are prevented via deterministic ID mapping',
+      () async {
+        final activity = ActivityModel(
+          title: 'Drink Water',
+          scheduledTime: '10:00 AM',
+          isReminderEnabled: true,
+          isActive: true,
+        );
+        final actId = await activityRepository.createActivity(activity);
 
-      // Run reconciliation twice
-      await notificationService.reconcileNotifications();
-      await notificationService.reconcileNotifications();
+        // Run reconciliation twice
+        await notificationService.reconcileNotifications();
+        await notificationService.reconcileNotifications();
 
-      final matches = mockPendingNotifications.where(
-        (n) => n['id'] == AppConstants.notificationActivityBaseId + actId,
-      );
-      expect(matches.length, 1);
-    });
+        final matches = mockPendingNotifications.where(
+          (n) => n['id'] == AppConstants.notificationActivityBaseId + actId,
+        );
+        expect(matches.length, 1);
+      },
+    );
 
-    test('Scenario 11: Global notification toggle clears pending alarms without altering SQLite data', () async {
-      final task = TaskModel(
-        title: 'Preserved Task',
-        dueDate: '2032-05-01',
-        dueTime: '09:00 AM',
-        reminderTime: '09:00 AM',
-      );
-      final taskId = await taskRepository.createTask(task);
+    test(
+      'Scenario 11: Global notification toggle clears pending alarms without altering SQLite data',
+      () async {
+        final task = TaskModel(
+          title: 'Preserved Task',
+          dueDate: '2032-05-01',
+          dueTime: '09:00 AM',
+          reminderTime: '09:00 AM',
+        );
+        final taskId = await taskRepository.createTask(task);
 
-      final controller = SettingsController(settingsRepository: settingsRepository);
-      expect(controller.notificationsEnabled.value, isTrue);
+        final controller = SettingsController(
+          settingsRepository: settingsRepository,
+        );
+        expect(controller.notificationsEnabled.value, isTrue);
 
-      // Toggle off globally
-      await controller.toggleNotifications(false);
-      expect(controller.notificationsEnabled.value, isFalse);
-      expect(mockPendingNotifications, isEmpty);
+        // Toggle off globally
+        await controller.toggleNotifications(false);
+        expect(controller.notificationsEnabled.value, isFalse);
+        expect(mockPendingNotifications, isEmpty);
 
-      // Verify task still exists in SQLite!
-      final fetchedTask = await taskRepository.getTaskById(taskId);
-      expect(fetchedTask, isNotNull);
-      expect(fetchedTask!.title, 'Preserved Task');
-      expect(fetchedTask.reminderTime, '09:00 AM');
-    });
+        // Verify task still exists in SQLite!
+        final fetchedTask = await taskRepository.getTaskById(taskId);
+        expect(fetchedTask, isNotNull);
+        expect(fetchedTask!.title, 'Preserved Task');
+        expect(fetchedTask.reminderTime, '09:00 AM');
+      },
+    );
   });
 }

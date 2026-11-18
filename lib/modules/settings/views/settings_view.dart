@@ -171,9 +171,12 @@ class SettingsView extends GetView<SettingsController> {
                           ),
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
-                            onPressed: () => controller.openNotificationSettings(),
+                            onPressed: () =>
+                                controller.openNotificationSettings(),
                             icon: const Icon(Icons.settings_outlined, size: 16),
-                            label: const Text('Open System Notification Settings'),
+                            label: const Text(
+                              'Open System Notification Settings',
+                            ),
                             style: OutlinedButton.styleFrom(
                               visualDensity: VisualDensity.compact,
                               shape: RoundedRectangleBorder(
@@ -195,10 +198,14 @@ class SettingsView extends GetView<SettingsController> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.5,
+                  ),
                 ),
               ),
               child: Column(

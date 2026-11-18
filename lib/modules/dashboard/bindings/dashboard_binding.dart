@@ -1,3 +1,4 @@
+import 'package:daily_flow/core/services/reporting_service.dart';
 import 'package:get/get.dart';
 import '../../../data/repositories/activity_repository.dart';
 import '../../../data/repositories/settings_repository.dart';
@@ -32,10 +33,16 @@ class DashboardBinding extends Bindings {
         activityRepository: Get.find<ActivityRepository>(),
       ),
     );
+    if (!Get.isRegistered<ReportingService>()) {
+      Get.lazyPut<ReportingService>(() => ReportingService());
+    }
     Get.lazyPut<ReportsController>(
       () => ReportsController(
         taskRepository: Get.find<TaskRepository>(),
         activityRepository: Get.find<ActivityRepository>(),
+        reportingService: Get.isRegistered<ReportingService>()
+            ? Get.find<ReportingService>()
+            : ReportingService(),
       ),
     );
     Get.lazyPut<SettingsController>(

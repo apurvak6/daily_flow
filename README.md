@@ -33,7 +33,7 @@ Most modern productivity and habit-tracking applications rely heavily on cloud s
 - [x] **Occurrence Status Engine (Phase 3)**: Completed, Skipped, Pending statuses, and automatic Missed/Overdue identification with strict date isolation.
 - [x] **Interactive Calendar View (Phase 3)**: Monthly `table_calendar` view with dual-color event markers (tasks & activities), date summary cards, month navigation, and one-tap "Today" action.
 - [x] **Local Reminders & Notifications (Phase 4)**: Offline native scheduled alerts (`flutter_local_notifications`), exact alarms, boot receivers, startup/resume reconciliation, and settings management.
-- [ ] **Visual Productivity Analytics (Pending Phase 5)**: Daily and weekly completion charts (`fl_chart`).
+- [x] **Visual Productivity Analytics (Phase 5)**: Daily, weekly, category charts (`fl_chart`), and date-wise read-only history.
 
 ---
 
@@ -561,7 +561,67 @@ Because an app may be terminated while tasks are completed on other screens, rem
 
 ---
 
-## 11. Current Implementation Status
+## 11. Phase 5 — Statistics & Reports Architecture & Calculation Rules
+
+### 1. Overview
+The Statistics & Reports module provides deep insights into productivity, task completion rates, habit consistency, and historical performance using live SQLite aggregations without duplicate tables or duplicated business logic.
+
+### 2. Architecture & Data Flow
+All statistical queries are centralized in `ReportingService` (injected via GetX `InitialBinding` and `ReportsBinding`) which delegates queries to `TaskLocalDataSource` and `ActivityLocalDataSource`. The `ReportsController` maintains the UI state, tab selections, active date, and week ranges.
+
+- **Reports View (`ReportsView`)**: Divided into 4 segmented sections:
+  1. **Daily Report (`DailyReport`)**: Single-day performance with interactive date selector, donut charts, and summary metric tiles.
+  2. **Weekly Report (`WeeklyReport`)**: 7-day progression bar chart, week-over-week totals, day-by-day comparison cards, and previous/next week navigation.
+  3. **Category Summary (`CategoryReport`)**: Distribution donut chart and category-by-category cards detailing total occurrences, completed, pending, skipped, and completion rates.
+  4. **Date History (`HistoryReport`)**: Read-only historical timeline with filter chips (`All`, `Tasks`, `Activities`), status badges (`Completed`, `Pending`, `Skipped`, `Overdue`), and metric badges.
+
+### 3. Calculation & Aggregation Rules
+
+#### Daily Statistics Calculation Rules:
+For a selected ISO date `D` (`yyyy-MM-dd`):
+1. **Recurring Occurrence Generation**: Calling `getOccurrencesForDate(D)` dynamically ensures recurring tasks and active routine occurrences are generated for date `D` if not previously populated, avoiding missing or phantom records.
+2. **Total Tasks (`taskTotal`)**: Count of all task occurrences with `occurrence_date = D`.
+3. **Completed Tasks (`taskCompleted`)**: Count of task occurrences with `occurrence_date = D` and `is_completed = 1`.
+4. **Pending Tasks (`taskPending`)**: Count of task occurrences with `occurrence_date = D` and `is_completed = 0` (`max(0, taskTotal - taskCompleted)`).
+5. **Overdue Tasks (`taskOverdue`)**:
+   - If `D == today`: Tasks from prior dates with `occurrence_date < today` and `is_completed = 0`.
+   - If `D < today`: Any uncompleted task on date `D` (`taskTotal - taskCompleted`).
+   - If `D > today`: `0` (future tasks cannot be overdue).
+6. **Task Completion Rate (`taskCompletionPct`)**:
+   $$\text{Completion Rate} = \begin{cases} 0\% & \text{if } \text{taskTotal} = 0 \\ \left(\frac{\text{taskCompleted}}{\text{taskTotal}} \times 100\right)\% & \text{otherwise} \end{cases}$$
+7. **Total Activities (`activityTotal`)**: Count of all activity occurrences with `occurrence_date = D`.
+8. **Completed Activities (`activityCompleted`)**: Count of activity occurrences with `occurrence_date = D` and (`is_completed = 1` or `status = 'completed'`).
+9. **Skipped Activities (`activitySkipped`)**: Count of activity occurrences with `occurrence_date = D` and `status = 'skipped'`.
+10. **Pending Activities (`activityPending`)**: $\max(0, \text{activityTotal} - \text{activityCompleted} - \text{activitySkipped})$.
+
+#### Weekly Statistics Calculation Rules:
+For a week beginning on Monday `M` (`yyyy-MM-dd`) through Sunday `S`:
+1. **Daily Aggregation**: Computes daily statistics for each of the 7 days (Mon through Sun).
+2. **Week Totals**:
+   - $\text{weekTaskCompleted} = \sum_{i=1}^7 \text{taskCompleted}_i$
+   - $\text{weekTaskTotal} = \sum_{i=1}^7 \text{taskTotal}_i$
+   - $\text{weekTaskPending} = \sum_{i=1}^7 \text{taskPending}_i$
+   - $\text{weekTaskOverdue} = \sum_{i=1}^7 \text{taskOverdue}_i \quad (\text{for days } \le \text{today})$
+   - $\text{weekActivityCompleted} = \sum_{i=1}^7 \text{activityCompleted}_i$
+   - $\text{weekActivityTotal} = \sum_{i=1}^7 \text{activityTotal}_i$
+3. **Weekly Task Completion %**:
+   $$\text{Week Completion \%} = \begin{cases} 0\% & \text{if } \text{weekTaskTotal} = 0 \\ \left(\frac{\text{weekTaskCompleted}}{\text{weekTaskTotal}} \times 100\right)\% & \text{otherwise} \end{cases}$$
+4. **Day-by-Day Progression**: Each day contains its completion %, day abbreviation, task counts, and activity counts for direct side-by-side comparison.
+
+#### Category Summary Rules:
+Activities are aggregated across categories via SQL `GROUP BY a.category`:
+- `total`: Total occurrences tracked for that category.
+- `completed`: Sum of occurrences completed.
+- `skipped`: Sum of occurrences skipped.
+- `pending`: Occurrences awaiting completion.
+- `completionPct`: Percentage of completed out of total.
+
+#### Read-Only Historical Integrity:
+To satisfy requirements, all records displayed in `HistoryReport` are strictly **read-only**. Tapping historical items does not toggle checkboxes or mutate database states, ensuring that viewing historical reports never alters historical data.
+
+---
+
+## 12. Current Implementation Status
 
 | Milestone / Component | Status | Details |
 | :--- | :---: | :--- |
@@ -577,11 +637,11 @@ Because an app may be terminated while tasks are completed on other screens, rem
 | **Daily Activities & Habit Tracking (Phase 3)** | **Completed** | Master activity templates, scheduled time, reminder toggle, daily schedule view, and occurrence status engine. |
 | **Calendar Timeline Screen (Phase 3)** | **Completed** | `TableCalendar` monthly view, dual-color task/activity dots, date summary metrics, and date item lists. |
 | **Local Reminders & Notifications (Phase 4)** | **Completed** | One-time & daily task reminders, daily activity reminders, exact alarm fallback, boot receivers, startup/resume reconciliation, and settings UI. |
-| **Visual Productivity Analytics (Phase 5)** | *Pending Phase 5* | `FLChart` weekly bar charts, trend analysis, and completion statistics. |
+| **Visual Productivity Analytics (Phase 5)** | **Completed** | Full reporting dashboard: Daily, Weekly, Category, and History tabs with `fl_chart`, live SQLite aggregation, and read-only history review. |
 
 ---
 
-## 12. Known Limitations & Operating System Restrictions
+## 13. Known Limitations & Operating System Restrictions
 
 1. **Android Force-Stop State**: If the user manually "Force Stops" the application from Android App Info settings, Android removes all scheduled alarms and disables broadcast receivers until the user manually relaunches the application. This is a core Android security constraint.
 2. **Aggressive Battery Optimizers / OEM Task Killers**: Certain Android vendors (Xiaomi/MIUI, Huawei, Samsung) employ aggressive background app managers that can delay or drop inexact alarms. Users can whitelist DailyFlow under "Battery Optimization / Unrestricted" for best precision.
