@@ -89,7 +89,7 @@ void main() {
     expect(find.text(AppConstants.appName), findsOneWidget);
     expect(find.text('Daily Completion'), findsOneWidget);
     expect(find.text("Today's Timeline"), findsOneWidget);
-    expect(find.text('Quick Add'), findsOneWidget);
+    expect(find.text('New Task'), findsOneWidget);
   });
 
   testWidgets('TasksView displays header, filters and search bar', (

@@ -72,27 +72,12 @@ class HomeTabView extends GetView<DashboardController> {
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh Dashboard',
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilledButton.tonalIcon(
-              onPressed: () => TaskFormSheet.show(context),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Task'),
-              style: FilledButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => TaskFormSheet.show(context),
-        icon: const Icon(Icons.add_task_rounded),
-        label: const Text('Quick Add'),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New Task'),
       ),
       body: SafeArea(
         child: RefreshIndicator(

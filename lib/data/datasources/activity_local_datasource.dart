@@ -190,6 +190,7 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
       }
 
       // 2. Fetch occurrences with joined activity metadata
+      final todayIso = AppDateUtils.todayIso;
       final query =
           '''
         SELECT 
@@ -215,10 +216,11 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
         FROM ${DbConstants.tableActivityOccurrences} o
         INNER JOIN ${DbConstants.tableActivities} a ON o.${DbConstants.colActOccActivityId} = a.${DbConstants.colActId}
         WHERE o.${DbConstants.colActOccDate} = ?
+          AND (o.${DbConstants.colActOccDate} <= ? OR a.${DbConstants.colActIsActive} = 1 OR o.${DbConstants.colActOccStatus} != 'pending')
         ORDER BY o.${DbConstants.colActOccIsCompleted} ASC, o.${DbConstants.colActOccId} ASC
       ''';
 
-      final results = await txn.rawQuery(query, [isoDate]);
+      final results = await txn.rawQuery(query, [isoDate, todayIso]);
       return results.map(ActivityOccurrenceModel.fromMap).toList();
     });
   }

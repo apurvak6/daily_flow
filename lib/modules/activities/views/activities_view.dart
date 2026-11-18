@@ -219,6 +219,7 @@ class ActivitiesView extends GetView<ActivitiesController> {
           description:
               'Set up recurring daily activities like Breakfast, Lunch, Exercise, Medication, or Custom Routines.',
           actionLabel: 'Add Routine',
+          actionIcon: Icons.add_rounded,
           onAction: () => ActivityFormSheet.show(context),
         );
       }

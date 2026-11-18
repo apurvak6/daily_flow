@@ -45,4 +45,12 @@ class AppConstants {
     'Hydration',
     'Skill',
   ];
+
+  // Notification Channel & IDs
+  static const String notificationChannelId = 'daily_flow_reminders_channel';
+  static const String notificationChannelName = 'DailyFlow Reminders';
+  static const String notificationChannelDesc =
+      'Scheduled reminders for daily activities and tasks';
+  static const int notificationTaskBaseId = 1000000;
+  static const int notificationActivityBaseId = 2000000;
 }

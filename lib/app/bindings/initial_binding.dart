@@ -13,10 +13,10 @@ class InitialBinding extends Bindings {
   @override
   void dependencies() {
     // 1. Core Services & Database
-    // permanent: true prevents GetX from automatically removing this
-    //dependency during normal lifecycle cleanup.
     Get.put<DatabaseHelper>(DatabaseHelper.instance, permanent: true);
-    Get.put<NotificationService>(NotificationService(), permanent: true);
+    if (!Get.isRegistered<NotificationService>()) {
+      Get.put<NotificationService>(NotificationService(), permanent: true);
+    }
 
     // 2. Data Sources
     Get.lazyPut<TaskLocalDataSource>(

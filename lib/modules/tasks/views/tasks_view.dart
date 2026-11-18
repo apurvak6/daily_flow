@@ -44,24 +44,6 @@ class TasksView extends GetView<TasksController> {
               }
             },
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilledButton.tonalIcon(
-              onPressed: () => TaskFormSheet.show(
-                context,
-                initialDateIso: controller.selectedDate.value,
-              ),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add'),
-              style: FilledButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -192,6 +174,9 @@ class TasksView extends GetView<TasksController> {
                         ? 'Try clearing search filters or selecting another category.'
                         : 'Schedule tasks for this date to stay productive.',
                     actionLabel: isFiltered ? 'Clear Filters' : 'Add Task',
+                    actionIcon: isFiltered
+                        ? Icons.filter_alt_off_rounded
+                        : Icons.add_rounded,
                     onAction: () {
                       if (isFiltered) {
                         controller.setSearchQuery('');

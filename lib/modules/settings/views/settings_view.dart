@@ -4,7 +4,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../controllers/settings_controller.dart';
 
-/// Settings and preferences screen view.
+/// Settings and preferences screen view with Appearance, Notifications, and System permissions.
 class SettingsView extends GetView<SettingsController> {
   const SettingsView({super.key});
 
@@ -25,6 +25,7 @@ class SettingsView extends GetView<SettingsController> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // 1. Appearance Section
             Text(
               'Appearance',
               style: theme.textTheme.titleMedium?.copyWith(
@@ -77,29 +78,167 @@ class SettingsView extends GetView<SettingsController> {
                 ],
               ),
             ),
+
             const SizedBox(height: 24),
+
+            // 2. Notifications Section
             Text(
-              'Notifications',
+              'Notifications & Reminders',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: theme.colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             CustomCard(
               padding: EdgeInsets.zero,
-              child: Obx(
-                () => SwitchListTile(
-                  title: const Text('Task Reminders'),
-                  subtitle: const Text(
-                    'Receive local alerts for pending tasks',
+              child: Column(
+                children: [
+                  Obx(
+                    () => SwitchListTile(
+                      title: const Text(
+                        'Task & Routine Reminders',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text(
+                        'Scheduled native alerts for tasks and daily habits',
+                      ),
+                      value: controller.notificationsEnabled.value,
+                      onChanged: (val) => controller.toggleNotifications(val),
+                    ),
                   ),
-                  value: controller.notificationsEnabled.value,
-                  onChanged: (val) => controller.toggleNotifications(val),
-                ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  Obx(() {
+                    final hasPermission = controller.osPermissionGranted.value;
+                    final hasExact = controller.exactAlarmsGranted.value;
+
+                    return Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                hasPermission
+                                    ? Icons.check_circle_rounded
+                                    : Icons.warning_amber_rounded,
+                                size: 20,
+                                color: hasPermission
+                                    ? Colors.green
+                                    : theme.colorScheme.error,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  hasPermission
+                                      ? 'System Notification Permission: Active'
+                                      : 'System Notification Permission: Denied',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: hasPermission
+                                        ? Colors.green.shade700
+                                        : theme.colorScheme.error,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                hasExact
+                                    ? Icons.alarm_on_rounded
+                                    : Icons.alarm_off_rounded,
+                                size: 20,
+                                color: hasExact
+                                    ? theme.colorScheme.primary
+                                    : Colors.orange.shade700,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  hasExact
+                                      ? 'Exact Alarms: Enabled (Exact time delivery)'
+                                      : 'Exact Alarms: Inexact (Standard delivery)',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: () => controller.openNotificationSettings(),
+                            icon: const Icon(Icons.settings_outlined, size: 16),
+                            label: const Text('Open System Notification Settings'),
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
               ),
             ),
+
+            const SizedBox(height: 12),
+
+            // Informational Box about Android permissions and background constraints
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Notification & Background Notice',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '• Android 13+ requires explicit runtime notification permission.\n'
+                    '• Android 12+ requires exact alarm permission for precise minute-level reminders.\n'
+                    '• Alarms are restored automatically on device reboot via ScheduledNotificationBootReceiver.\n'
+                    '• Toggling notifications off cancels pending OS alerts but never modifies your task or habit data.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 24),
+
+            // 3. About Section
             Text(
               'About',
               style: theme.textTheme.titleMedium?.copyWith(
@@ -136,7 +275,7 @@ class SettingsView extends GetView<SettingsController> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Version 1.0.0 (Offline First)',
+                          'Version 1.0.0 (Offline First & Local Scheduling)',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),

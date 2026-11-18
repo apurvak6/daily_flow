@@ -1,3 +1,5 @@
+import 'package:get/get.dart';
+import '../../core/services/notification_service.dart';
 import '../datasources/task_local_datasource.dart';
 import '../models/task_model.dart';
 import '../models/task_occurrence_model.dart';
@@ -27,23 +29,48 @@ abstract class TaskRepository {
 /// Implementation of [TaskRepository] bridging ViewModel/Controller to [TaskLocalDataSource].
 class TaskRepositoryImpl implements TaskRepository {
   final TaskLocalDataSource _dataSource;
+  final NotificationService? _notificationService;
 
-  TaskRepositoryImpl({TaskLocalDataSource? dataSource})
-    : _dataSource = dataSource ?? TaskLocalDataSourceImpl();
+  TaskRepositoryImpl({
+    TaskLocalDataSource? dataSource,
+    NotificationService? notificationService,
+  })  : _dataSource = dataSource ?? TaskLocalDataSourceImpl(),
+        _notificationService = notificationService ??
+            (Get.isRegistered<NotificationService>()
+                ? Get.find<NotificationService>()
+                : null);
 
   @override
   Future<int> createTask(TaskModel task) async {
-    return await _dataSource.insertTask(task);
+    final id = await _dataSource.insertTask(task);
+    if (id > 0 && _notificationService != null) {
+      await _notificationService.scheduleTaskNotification(task.copyWith(id: id));
+    }
+    return id;
   }
 
   @override
   Future<int> updateTask(TaskModel task) async {
-    return await _dataSource.updateTask(task);
+    final count = await _dataSource.updateTask(task);
+    if (_notificationService != null) {
+      if (task.isCompleted || task.reminderTime == null) {
+        if (task.id != null) {
+          await _notificationService.cancelTaskNotification(task.id!);
+        }
+      } else {
+        await _notificationService.scheduleTaskNotification(task);
+      }
+    }
+    return count;
   }
 
   @override
   Future<int> deleteTask(int taskId) async {
-    return await _dataSource.deleteTask(taskId);
+    final count = await _dataSource.deleteTask(taskId);
+    if (_notificationService != null) {
+      await _notificationService.cancelTaskNotification(taskId);
+    }
+    return count;
   }
 
   @override

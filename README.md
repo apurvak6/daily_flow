@@ -32,8 +32,8 @@ Most modern productivity and habit-tracking applications rely heavily on cloud s
 - [x] **Daily Recurring Activities & Habits (Phase 3)**: Daily recurring activities (Breakfast, Lunch, Exercise, Meetings, Medication), scheduled time, reminder toggle, active/inactive status, and date-wise occurrence history.
 - [x] **Occurrence Status Engine (Phase 3)**: Completed, Skipped, Pending statuses, and automatic Missed/Overdue identification with strict date isolation.
 - [x] **Interactive Calendar View (Phase 3)**: Monthly `table_calendar` view with dual-color event markers (tasks & activities), date summary cards, month navigation, and one-tap "Today" action.
-- [ ] **Visual Productivity Analytics (Pending Phase 4)**: Daily and weekly completion charts (`fl_chart`).
-- [ ] **Local Reminders & Notifications (Pending Phase 5)**: Offline scheduled alerts (`flutter_local_notifications`).
+- [x] **Local Reminders & Notifications (Phase 4)**: Offline native scheduled alerts (`flutter_local_notifications`), exact alarms, boot receivers, startup/resume reconciliation, and settings management.
+- [ ] **Visual Productivity Analytics (Pending Phase 5)**: Daily and weekly completion charts (`fl_chart`).
 
 ---
 
@@ -451,28 +451,140 @@ UPDATE activity_occurrences SET status = 'skipped' WHERE notes = 'Skipped';
 
 ---
 
-## 10. Current Implementation Status
+## 10. Phase 4 Architecture: Local Notifications & Background Processing
 
-| Milestone / Component | Status | Details |
-| :--- | :---: | :--- |
-| **Project Setup & Pubspec** | **Completed** | Clean dependencies configured (`get`, `sqflite`, `intl`, `fl_chart`, `table_calendar`, etc.). |
-| **Folder Structure & Architecture** | **Completed** | Full feature-based folder hierarchy established. |
-| **SQLite Schema & Indexes** | **Completed** | All 5 tables, foreign keys, unique constraints, and indexes verified via unit tests. |
-| **Data Models & DataSources** | **Completed** | Null-safe entities with `toMap()`, `fromMap()`, and transactional datasources. |
-| **Repository Contracts & Impls** | **Completed** | `TaskRepository`, `ActivityRepository`, and `SettingsRepository` bound via GetX. |
-| **Material 3 Theming** | **Completed** | Light and Dark palettes, typography, rounded cards, and status colors configured. |
-| **5-Tab Navigation Shell** | **Completed** | `DashboardView` with Material 3 `NavigationBar` and initial tab screens. |
-| **Premium Dashboard UI (Phase 2)** | **Completed** | Today's progress card, completion %, metrics, chronological timeline, overdue alert banner, and upcoming tasks. |
-| **Task Management UI & CRUD (Phase 2)** | **Completed** | Full task creation, editing, deletion, inline form validation, category/status filters, and search. |
-| **Daily Activities & Habit Tracking (Phase 3)** | **Completed** | Master activity templates, scheduled time, reminder toggle, daily schedule view, and occurrence status engine. |
-| **Calendar Timeline Screen (Phase 3)** | **Completed** | `TableCalendar` monthly view, dual-color task/activity dots, date summary metrics, and date item lists. |
-| **Reports & Charts Screen** | *Pending Phase 4* | `FLChart` weekly bar charts and completion statistics. |
-| **Notification Scheduling** | *Pending Phase 5* | Time-based reminders using `NotificationService`. |
+DailyFlow Phase 4 establishes an offline-first notification and background reconciliation engine powered by `flutter_local_notifications` and the `timezone` package.
+
+### 1. Notification Architecture & Scheduling Engine
+
+```
+┌────────────────────────────────────────────────────────┐
+│               Task / Activity Repository               │
+│   • On Create: scheduleNotification(entity)            │
+│   • On Update: reschedule / cancel notification        │
+│   • On Delete: cancelNotification(id)                  │
+└───────────────────────────┬────────────────────────────┘
+                            │
+┌───────────────────────────▼────────────────────────────┐
+│              NotificationService (GetxService)         │
+│   • Lifecycle Observer (resumed state trigger)         │
+│   • Deterministic ID generator                         │
+│   • Exact alarm mode resolver (with fallback)          │
+│   • Dual-direction reconciliation                      │
+└───────────────────────────┬────────────────────────────┘
+                            │
+┌───────────────────────────▼────────────────────────────┐
+│       FlutterLocalNotificationsPlugin + Timezone       │
+│   • Android AlarmManager / ExactAlarmWhileIdle         │
+│   • ScheduledNotificationBootReceiver (reboot survival)│
+│   • High-priority Android notification channel         │
+└────────────────────────────────────────────────────────┘
+```
+
+### 2. Deterministic Notification Identifier Scheme
+
+To guarantee collision-free ID mapping and enable instant, O(1) correlation between database entities and OS-level pending alarms, DailyFlow uses partitioned deterministic 32-bit integer ranges:
+
+| Entity Type | Base Offset | ID Formula | Example |
+| :--- | :---: | :---: | :---: |
+| **Tasks** (One-time & Recurring) | `1,000,000` | `1000000 + task.id` | Task #5 $\rightarrow$ Notification `1000005` |
+| **Daily Activities / Routines** | `2,000,000` | `2000000 + activity.id` | Activity #3 $\rightarrow$ Notification `2000003` |
+
+**Key Architectural Benefits:**
+- **Zero Collision Risk**: Tasks and Activities operate in disjoint integer subspaces.
+- **Bi-directional Mapping**: Given any notification ID, `id - 1000000` or `id - 2000000` identifies the exact underlying database row.
+- **Natural Duplicate Prevention**: Scheduling with an existing deterministic ID automatically updates/overwrites the active alarm in the OS scheduler without creating duplicate alerts.
+
+### 3. Scheduling Types & Recurrence Logic
+
+1. **One-Time Tasks**:
+   - Scheduled for `task.dueDate` at `task.reminderTime ?? task.dueTime`.
+   - `matchDateTimeComponents: null` ensures the alert triggers exactly once.
+   - If the calculated target datetime is in the past, scheduling is skipped, and any stale notification is cancelled.
+2. **Daily Recurring Tasks**:
+   - Scheduled at `task.reminderTime ?? task.dueTime` with `matchDateTimeComponents: DateTimeComponents.time`.
+   - If today's target time has already passed, the initial trigger automatically rolls over to tomorrow at that time.
+3. **Daily Recurring Activities**:
+   - Scheduled at `activity.scheduledTime` with `matchDateTimeComponents: DateTimeComponents.time`.
+   - Fires daily at the configured routine time (e.g., `08:00 AM`).
+   - Automatically cancelled when the activity template is deactivated (`is_active = 0`) or reminder toggle is turned off.
+
+### 4. Background Reconciliation Mechanism
+
+Because an app may be terminated while tasks are completed on other screens, reminder times are edited, or schedules expire, DailyFlow runs an automated **Reconciliation Engine** on:
+1. Application cold start (`main.dart`).
+2. Application resume from background (`didChangeAppLifecycleState(AppLifecycleState.resumed)`).
+3. Re-enabling notifications via the Settings screen.
+
+**Reconciliation Pipeline:**
+1. **Global Setting Check**: If master notifications are toggled OFF in app settings, all OS alarms are cancelled immediately and reconciliation halts.
+2. **SQLite Query**: Loads all active tasks and active activities with reminders enabled.
+3. **Expected ID Calculation**: Builds a set of expected notification IDs. Expired one-time tasks and completed tasks are omitted.
+4. **OS Pending Inspection**: Queries `pendingNotificationRequests()` to obtain currently queued alarms in Android/iOS.
+5. **Pruning Obsolete Alarms**: Any pending OS notification whose ID is absent from the expected set is cancelled.
+6. **Missing / Updated Schedules**: Re-enqueues expected alarms to guarantee accurate payload, title, body, and trigger times.
+
+### 5. Android Manifest, Permissions, & Device Reboot Handling
+
+#### Android Permissions Declared:
+```xml
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+<uses-permission android:name="android.permission.VIBRATE"/>
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+<uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+```
+
+#### Native Receivers Configured:
+```xml
+<receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+<receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+    <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED"/>
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+        <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+        <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+    </intent-filter>
+</receiver>
+```
+
+- **Reboot Persistence**: `ScheduledNotificationBootReceiver` listens for `BOOT_COMPLETED` and reinstates pending alarms registered by `flutter_local_notifications`.
+- **Runtime Permission**: Requested via `NotificationService.to.requestPermissions()` on Android 13+ (API 33+).
+- **Exact Alarms**: Checks `canScheduleExactNotifications()` on Android 12+ (API 31+). If granted, uses `AndroidScheduleMode.exactAllowWhileIdle`. If denied or restricted, gracefully falls back to `AndroidScheduleMode.inexactAllowWhileIdle`.
+
+### 6. Settings Screen Controls & Safety Guarantee
+
+- **Global Reminders Switch**: Enables or disables all scheduled alerts.
+- **Permission Status Indicators**: Shows live permission status (`Active` vs `Denied`) and exact alarm capability.
+- **Direct System Settings Shortcut**: `Open System Notification Settings` opens the native app notification settings page without leaving the app.
+- **Data Safety**: Disabling notifications cancels pending OS alarms but **never deletes or modifies SQLite tasks, routines, or completion history**.
 
 ---
 
-## 11. Known Limitations & Assumptions
+## 11. Current Implementation Status
 
-1. **Local Device Clock Dependency**: Because DailyFlow works 100% offline, occurrence dates rely on the host device's local system clock.
-2. **Platform Notification Permissions**: On modern Android (API 33+) and iOS, notifications require user runtime permission. The service gracefully falls back if permission is denied.
-3. **No External Cloud Synchronization**: Data is stored exclusively in on-device SQLite storage; uninstalling the app deletes local records unless backed up via OS-level backup.
+| Milestone / Component | Status | Details |
+| :--- | :---: | :--- |
+| **Project Setup & Pubspec** | **Completed** | Clean dependencies configured (`get`, `sqflite`, `intl`, `fl_chart`, `table_calendar`, `flutter_local_notifications`, `timezone`). |
+| **Folder Structure & Architecture** | **Completed** | Feature-based MVVM + Repository Pattern. |
+| **SQLite Schema & Indexes** | **Completed** | Schema v3 with tasks, activities, occurrences, and settings tables. |
+| **Data Models & DataSources** | **Completed** | Null-safe entities with `toMap()`, `fromMap()`, and transactional datasources. |
+| **Repository Contracts & Impls** | **Completed** | `TaskRepository`, `ActivityRepository`, and `SettingsRepository` with notification triggers. |
+| **Material 3 Theming** | **Completed** | Light and Dark palettes, typography, rounded cards, and status semantics. |
+| **5-Tab Navigation Shell** | **Completed** | `DashboardView` with Material 3 `NavigationBar`. |
+| **Premium Dashboard UI (Phase 2)** | **Completed** | Today's progress card, completion %, metrics, chronological timeline, and upcoming tasks. |
+| **Task Management UI & CRUD (Phase 2)** | **Completed** | Task creation, editing, deletion, inline form validation, category/status filters, and search. |
+| **Daily Activities & Habit Tracking (Phase 3)** | **Completed** | Master activity templates, scheduled time, reminder toggle, daily schedule view, and occurrence status engine. |
+| **Calendar Timeline Screen (Phase 3)** | **Completed** | `TableCalendar` monthly view, dual-color task/activity dots, date summary metrics, and date item lists. |
+| **Local Reminders & Notifications (Phase 4)** | **Completed** | One-time & daily task reminders, daily activity reminders, exact alarm fallback, boot receivers, startup/resume reconciliation, and settings UI. |
+| **Visual Productivity Analytics (Phase 5)** | *Pending Phase 5* | `FLChart` weekly bar charts, trend analysis, and completion statistics. |
+
+---
+
+## 12. Known Limitations & Operating System Restrictions
+
+1. **Android Force-Stop State**: If the user manually "Force Stops" the application from Android App Info settings, Android removes all scheduled alarms and disables broadcast receivers until the user manually relaunches the application. This is a core Android security constraint.
+2. **Aggressive Battery Optimizers / OEM Task Killers**: Certain Android vendors (Xiaomi/MIUI, Huawei, Samsung) employ aggressive background app managers that can delay or drop inexact alarms. Users can whitelist DailyFlow under "Battery Optimization / Unrestricted" for best precision.
+3. **Exact Alarm Permission on Android 13+**: Starting with Android 13, applications require user consent or system allowance for `SCHEDULE_EXACT_ALARM`. DailyFlow detects when this permission is restricted and gracefully falls back to inexact scheduling (`inexactAllowWhileIdle`) so alarms still fire near the scheduled time.
+4. **Local Device Clock Dependency**: Because DailyFlow operates 100% offline without remote NTP servers, scheduled notification trigger times rely on the device's local system clock.
+5. **No Cloud Push Dependency**: DailyFlow intentionally relies exclusively on on-device native schedulers, preserving user privacy and zero data leakage.

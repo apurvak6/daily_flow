@@ -1,3 +1,5 @@
+import 'package:get/get.dart';
+import '../../core/services/notification_service.dart';
 import '../datasources/activity_local_datasource.dart';
 import '../models/activity_model.dart';
 import '../models/activity_occurrence_model.dart';
@@ -28,23 +30,48 @@ abstract class ActivityRepository {
 /// Implementation of [ActivityRepository] bridging ViewModel/Controller to [ActivityLocalDataSource].
 class ActivityRepositoryImpl implements ActivityRepository {
   final ActivityLocalDataSource _dataSource;
+  final NotificationService? _notificationService;
 
-  ActivityRepositoryImpl({ActivityLocalDataSource? dataSource})
-    : _dataSource = dataSource ?? ActivityLocalDataSourceImpl();
+  ActivityRepositoryImpl({
+    ActivityLocalDataSource? dataSource,
+    NotificationService? notificationService,
+  })  : _dataSource = dataSource ?? ActivityLocalDataSourceImpl(),
+        _notificationService = notificationService ??
+            (Get.isRegistered<NotificationService>()
+                ? Get.find<NotificationService>()
+                : null);
 
   @override
   Future<int> createActivity(ActivityModel activity) async {
-    return await _dataSource.insertActivity(activity);
+    final id = await _dataSource.insertActivity(activity);
+    if (id > 0 && _notificationService != null) {
+      await _notificationService.scheduleActivityNotification(
+        activity.copyWith(id: id),
+      );
+    }
+    return id;
   }
 
   @override
   Future<int> updateActivity(ActivityModel activity) async {
-    return await _dataSource.updateActivity(activity);
+    final count = await _dataSource.updateActivity(activity);
+    if (_notificationService != null && activity.id != null) {
+      if (!activity.isActive || !activity.isReminderEnabled) {
+        await _notificationService.cancelActivityNotification(activity.id!);
+      } else {
+        await _notificationService.scheduleActivityNotification(activity);
+      }
+    }
+    return count;
   }
 
   @override
   Future<int> deleteActivity(int activityId) async {
-    return await _dataSource.deleteActivity(activityId);
+    final count = await _dataSource.deleteActivity(activityId);
+    if (_notificationService != null) {
+      await _notificationService.cancelActivityNotification(activityId);
+    }
+    return count;
   }
 
   @override

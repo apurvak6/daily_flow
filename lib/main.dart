@@ -40,7 +40,10 @@ Future<void> main() async {
   // Initialize Local Notifications
   try {
     final notificationService = NotificationService();
-    await notificationService.init();
+    await notificationService.init(runReconciliation: true);
+    Get.put<NotificationService>(notificationService, permanent: true);
+    // Request runtime notification permission on startup
+    await notificationService.requestPermissions();
   } catch (e, stack) {
     AppLogger.error('Failed to initialize notifications', e, stack, 'main');
   }
