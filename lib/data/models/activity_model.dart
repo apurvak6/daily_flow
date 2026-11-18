@@ -7,6 +7,8 @@ class ActivityModel {
   final String title;
   final String? description;
   final String category;
+  final String? scheduledTime; // e.g. "08:00 AM" or "08:00"
+  final bool isReminderEnabled;
   final String? icon;
   final String? color;
   final String targetFrequency; // daily, weekdays, etc.
@@ -21,6 +23,8 @@ class ActivityModel {
     required this.title,
     this.description,
     this.category = 'Personal',
+    this.scheduledTime,
+    this.isReminderEnabled = false,
     this.icon,
     this.color,
     this.targetFrequency = AppConstants.frequencyDaily,
@@ -37,6 +41,8 @@ class ActivityModel {
       DbConstants.colActTitle: title,
       DbConstants.colActDescription: description,
       DbConstants.colActCategory: category,
+      DbConstants.colActScheduledTime: scheduledTime,
+      DbConstants.colActReminderEnabled: isReminderEnabled ? 1 : 0,
       DbConstants.colActIcon: icon,
       DbConstants.colActColor: color,
       DbConstants.colActTargetFrequency: targetFrequency,
@@ -58,6 +64,9 @@ class ActivityModel {
       title: map[DbConstants.colActTitle] as String? ?? '',
       description: map[DbConstants.colActDescription] as String?,
       category: map[DbConstants.colActCategory] as String? ?? 'Personal',
+      scheduledTime: map[DbConstants.colActScheduledTime] as String?,
+      isReminderEnabled:
+          (map[DbConstants.colActReminderEnabled] as int? ?? 0) == 1,
       icon: map[DbConstants.colActIcon] as String?,
       color: map[DbConstants.colActColor] as String?,
       targetFrequency:
@@ -80,6 +89,8 @@ class ActivityModel {
     String? title,
     String? description,
     String? category,
+    String? scheduledTime,
+    bool? isReminderEnabled,
     String? icon,
     String? color,
     String? targetFrequency,
@@ -94,6 +105,8 @@ class ActivityModel {
       title: title ?? this.title,
       description: description ?? this.description,
       category: category ?? this.category,
+      scheduledTime: scheduledTime ?? this.scheduledTime,
+      isReminderEnabled: isReminderEnabled ?? this.isReminderEnabled,
       icon: icon ?? this.icon,
       color: color ?? this.color,
       targetFrequency: targetFrequency ?? this.targetFrequency,
@@ -107,5 +120,5 @@ class ActivityModel {
 
   @override
   String toString() =>
-      'ActivityModel(id: $id, title: $title, target: $targetValue $unit, active: $isActive)';
+      'ActivityModel(id: $id, title: $title, time: $scheduledTime, reminder: $isReminderEnabled, active: $isActive)';
 }

@@ -29,10 +29,11 @@ Most modern productivity and habit-tracking applications rely heavily on cloud s
 - [x] **5-Tab Responsive Shell Navigation**: Home, Tasks, Calendar, Reports, and Settings.
 - [x] **Premium Dashboard UI (Phase 2)**: Today's metrics, progress card, completion %, chronological timeline, and upcoming tasks.
 - [x] **Complete Task Management (Phase 2)**: Add, edit, delete, mark completed, recurrence (one-time & daily), date ribbon, search, category & status filters, with inline form validation.
-- [ ] **Daily Recurring Activities & Habits (Pending Phase 3)**: Habit progress logging with target units (e.g. glasses, minutes).
-- [ ] **Interactive Calendar View (Pending Phase 4)**: Date selection with event dots and timeline navigation (`table_calendar`).
-- [ ] **Visual Productivity Analytics (Pending Phase 5)**: Daily and weekly completion charts (`fl_chart`).
-- [ ] **Local Reminders & Notifications (Pending Phase 6)**: Offline scheduled alerts (`flutter_local_notifications`).
+- [x] **Daily Recurring Activities & Habits (Phase 3)**: Daily recurring activities (Breakfast, Lunch, Exercise, Meetings, Medication), scheduled time, reminder toggle, active/inactive status, and date-wise occurrence history.
+- [x] **Occurrence Status Engine (Phase 3)**: Completed, Skipped, Pending statuses, and automatic Missed/Overdue identification with strict date isolation.
+- [x] **Interactive Calendar View (Phase 3)**: Monthly `table_calendar` view with dual-color event markers (tasks & activities), date summary cards, month navigation, and one-tap "Today" action.
+- [ ] **Visual Productivity Analytics (Pending Phase 4)**: Daily and weekly completion charts (`fl_chart`).
+- [ ] **Local Reminders & Notifications (Pending Phase 5)**: Offline scheduled alerts (`flutter_local_notifications`).
 
 ---
 
@@ -403,27 +404,74 @@ During development, the SQLite database is located at:
 
 ---
 
-## 9. Current Implementation Status
+---
+
+## 9. Phase 3 Architecture: Daily Activity Management & Calendar Screen
+
+### 1. Daily Activity Management Module
+The Daily Activities module enables users to configure recurring routines (such as Breakfast, Lunch, Exercise, Meetings, Medication, and Custom habits) with:
+- **Title, Category, Scheduled Time (12h AM/PM), Reminder toggle, Frequency (Daily, Weekdays), and Active/Inactive status.**
+- **Dual-Tab Interface**:
+  - **Tab 1: Daily Schedule**: Interactive date-ribbon navigation, status filter chips (`All`, `Pending`, `Completed`, `Skipped`), summary stat pills, and `ActivityCard`s with immediate status toggle actions.
+  - **Tab 2: All Routines**: Master template manager with active/inactive switches, editing, and confirmation-gated deletion.
+- **Occurrence Status Operations**:
+  - **Mark Completed**: Records `status = 'completed'`, sets `is_completed = 1`, and timestamp.
+  - **Mark Skipped**: Records `status = 'skipped'`, sets `is_completed = 0`, and note `'Skipped'`.
+  - **Keep Pending**: Resets `status = 'pending'`, clearing completion flags without touching historical data.
+
+### 2. Date-wise Occurrence Logic & Isolation Engine
+- **Master vs. Occurrence Separation**: Activity templates are defined in `activities`, while daily occurrences are recorded in `activity_occurrences`.
+- **Strict Date Isolation**: Completing or skipping today's activity occurrence does not mutate past records or tomorrow's pending occurrence.
+- **Duplicate Prevention**: Guaranteed at both the database level (`UNIQUE(activity_id, occurrence_date)`) and application level (`ConflictAlgorithm.ignore`).
+- **Missed / Overdue Detection**: Occurrences on dates strictly before today that remain in a `pending` status are dynamically identified as `Missed` / `Overdue`.
+- **Safe Deactivation**: Deactivating an activity sets `is_active = 0`, stopping future occurrence generation while preserving past history in full.
+
+### 3. Professional Calendar Screen (`table_calendar`)
+- **Monthly Grid**: Smooth month-to-month swipe and header chevrons.
+- **Dual Event Dot Markers**:
+  - Primary Indigo dot indicates scheduled **Tasks**.
+  - Emerald Green dot indicates scheduled **Activities**.
+  - Dual dots visually indicate dates with both tasks and activities.
+- **Selected Date Details**:
+  - `DateSummaryCard` showing formatted date and real-time count pills (`Done`, `Due`, `Overdue` for tasks; `Done`, `Skip`, `Due` for activities).
+  - Segmented control to toggle between **Tasks List** and **Activities List**.
+  - Interactive item cards allowing users to complete tasks or mark activities completed/skipped directly from the calendar.
+- **One-Tap "Today" Action**: Quickly returns the calendar view and date selection to today.
+
+### 4. Database Version 3 Migration
+The SQLite database schema was upgraded to version 3 using incremental, versioned migrations:
+```sql
+-- Migration v2 -> v3
+ALTER TABLE activities ADD COLUMN scheduled_time TEXT;
+ALTER TABLE activities ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE activity_occurrences ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';
+UPDATE activity_occurrences SET status = 'completed' WHERE is_completed = 1;
+UPDATE activity_occurrences SET status = 'skipped' WHERE notes = 'Skipped';
+```
+
+---
+
+## 10. Current Implementation Status
 
 | Milestone / Component | Status | Details |
 | :--- | :---: | :--- |
 | **Project Setup & Pubspec** | **Completed** | Clean dependencies configured (`get`, `sqflite`, `intl`, `fl_chart`, `table_calendar`, etc.). |
 | **Folder Structure & Architecture** | **Completed** | Full feature-based folder hierarchy established. |
-| **SQLite Schema & Indexes** | **Completed** | All 4 tables, foreign keys, unique constraints, and indexes verified via unit tests. |
+| **SQLite Schema & Indexes** | **Completed** | All 5 tables, foreign keys, unique constraints, and indexes verified via unit tests. |
 | **Data Models & DataSources** | **Completed** | Null-safe entities with `toMap()`, `fromMap()`, and transactional datasources. |
-| **Repository Contracts & Impls** | **Completed** | `TaskRepository` and `ActivityRepository` implemented and bound via GetX. |
+| **Repository Contracts & Impls** | **Completed** | `TaskRepository`, `ActivityRepository`, and `SettingsRepository` bound via GetX. |
 | **Material 3 Theming** | **Completed** | Light and Dark palettes, typography, rounded cards, and status colors configured. |
 | **5-Tab Navigation Shell** | **Completed** | `DashboardView` with Material 3 `NavigationBar` and initial tab screens. |
-| **Premium Dashboard UI** | **Completed** | Today's progress card, completion %, metrics, chronological timeline, overdue alert banner, and upcoming tasks. |
-| **Task Management UI & CRUD** | **Completed** | Full task creation, editing, deletion, inline form validation, category/status filters, and search. |
-| **Habit Tracking UI & Logging** | *Pending Phase 3* | Activity progress loggers and habit cards. |
-| **Calendar Timeline Screen** | *Pending Phase 4* | `TableCalendar` widget integration. |
-| **Reports & Charts Screen** | *Pending Phase 5* | `FLChart` weekly bar charts and completion statistics. |
-| **Notification Scheduling** | *Pending Phase 6* | Time-based reminders using `NotificationService`. |
+| **Premium Dashboard UI (Phase 2)** | **Completed** | Today's progress card, completion %, metrics, chronological timeline, overdue alert banner, and upcoming tasks. |
+| **Task Management UI & CRUD (Phase 2)** | **Completed** | Full task creation, editing, deletion, inline form validation, category/status filters, and search. |
+| **Daily Activities & Habit Tracking (Phase 3)** | **Completed** | Master activity templates, scheduled time, reminder toggle, daily schedule view, and occurrence status engine. |
+| **Calendar Timeline Screen (Phase 3)** | **Completed** | `TableCalendar` monthly view, dual-color task/activity dots, date summary metrics, and date item lists. |
+| **Reports & Charts Screen** | *Pending Phase 4* | `FLChart` weekly bar charts and completion statistics. |
+| **Notification Scheduling** | *Pending Phase 5* | Time-based reminders using `NotificationService`. |
 
 ---
 
-## 10. Known Limitations & Assumptions
+## 11. Known Limitations & Assumptions
 
 1. **Local Device Clock Dependency**: Because DailyFlow works 100% offline, occurrence dates rely on the host device's local system clock.
 2. **Platform Notification Permissions**: On modern Android (API 33+) and iOS, notifications require user runtime permission. The service gracefully falls back if permission is denied.

@@ -19,17 +19,18 @@ abstract class ActivityLocalDataSource {
     String startDate,
     String endDate,
   );
+  Future<int> setOccurrenceStatus(int occurrenceId, String status);
   Future<int> setOccurrenceCompletion(int occurrenceId, bool isCompleted);
+  Future<int> skipOccurrence(int occurrenceId);
   Future<int> updateOccurrenceValue(
     int occurrenceId,
     int actualValue,
     int targetValue,
   );
-
-  /// Mark an occurrence as skipped. Updates notes to "Skipped" and clears completion flag.
-  Future<int> skipOccurrence(int occurrenceId);
   Future<int> getCompletedCountForDate(String isoDate);
+  Future<int> getSkippedCountForDate(String isoDate);
   Future<int> getTotalCountForDate(String isoDate);
+  Future<Map<String, int>> getDailyStats(String isoDate);
 }
 
 /// Implementation of [ActivityLocalDataSource] leveraging SQLite through [DatabaseHelper].
@@ -47,20 +48,24 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
 
       final actId = await txn.insert(DbConstants.tableActivities, actMap);
 
-      // Create initial occurrence for today
-      final todayIso = AppDateUtils.todayIso;
-      final occurrence = ActivityOccurrenceModel(
-        activityId: actId,
-        occurrenceDate: todayIso,
-        createdAt: now,
-        updatedAt: now,
-      );
+      // Create initial occurrence for today if active
+      if (activity.isActive) {
+        final todayIso = AppDateUtils.todayIso;
+        final occurrence = ActivityOccurrenceModel(
+          activityId: actId,
+          occurrenceDate: todayIso,
+          status: 'pending',
+          isCompleted: false,
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      await txn.insert(
-        DbConstants.tableActivityOccurrences,
-        occurrence.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.ignore,
-      );
+        await txn.insert(
+          DbConstants.tableActivityOccurrences,
+          occurrence.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
 
       AppLogger.info(
         'Inserted activity #$actId with today occurrence',
@@ -135,7 +140,7 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
           dateObj.weekday >= DateTime.monday &&
           dateObj.weekday <= DateTime.friday;
 
-      // 1. Check all active activities
+      // 1. Check active activities to ensure occurrence exists for this date
       final activeActivities = await txn.query(
         DbConstants.tableActivities,
         where: '${DbConstants.colActIsActive} = 1',
@@ -160,6 +165,7 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
           await txn.insert(DbConstants.tableActivityOccurrences, {
             DbConstants.colActOccActivityId: activity.id,
             DbConstants.colActOccDate: isoDate,
+            DbConstants.colActOccStatus: 'pending',
             DbConstants.colActOccIsCompleted: 0,
             DbConstants.colActOccActualValue: 0,
             DbConstants.colActOccCompletedAt: null,
@@ -177,6 +183,7 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
           o.${DbConstants.colActOccId},
           o.${DbConstants.colActOccActivityId},
           o.${DbConstants.colActOccDate},
+          o.${DbConstants.colActOccStatus},
           o.${DbConstants.colActOccIsCompleted},
           o.${DbConstants.colActOccActualValue},
           o.${DbConstants.colActOccCompletedAt},
@@ -186,6 +193,8 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
           a.${DbConstants.colActTitle} AS activity_title,
           a.${DbConstants.colActDescription} AS activity_description,
           a.${DbConstants.colActCategory},
+          a.${DbConstants.colActScheduledTime},
+          a.${DbConstants.colActReminderEnabled},
           a.${DbConstants.colActIcon},
           a.${DbConstants.colActColor},
           a.${DbConstants.colActTargetValue},
@@ -213,6 +222,7 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
         o.${DbConstants.colActOccId},
         o.${DbConstants.colActOccActivityId},
         o.${DbConstants.colActOccDate},
+        o.${DbConstants.colActOccStatus},
         o.${DbConstants.colActOccIsCompleted},
         o.${DbConstants.colActOccActualValue},
         o.${DbConstants.colActOccCompletedAt},
@@ -222,6 +232,8 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
         a.${DbConstants.colActTitle} AS activity_title,
         a.${DbConstants.colActDescription} AS activity_description,
         a.${DbConstants.colActCategory},
+        a.${DbConstants.colActScheduledTime},
+        a.${DbConstants.colActReminderEnabled},
         a.${DbConstants.colActIcon},
         a.${DbConstants.colActColor},
         a.${DbConstants.colActTargetValue},
@@ -237,18 +249,20 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
   }
 
   @override
-  Future<int> setOccurrenceCompletion(
-    int occurrenceId,
-    bool isCompleted,
-  ) async {
+  Future<int> setOccurrenceStatus(int occurrenceId, String status) async {
     final db = await _dbHelper.database;
     final now = DateTime.now().toIso8601String();
+
+    final isCompleted = status == 'completed';
+    final notes = status == 'skipped' ? 'Skipped' : null;
 
     return await db.update(
       DbConstants.tableActivityOccurrences,
       {
+        DbConstants.colActOccStatus: status,
         DbConstants.colActOccIsCompleted: isCompleted ? 1 : 0,
         DbConstants.colActOccCompletedAt: isCompleted ? now : null,
+        DbConstants.colActOccNotes: notes,
         DbConstants.colActOccUpdatedAt: now,
       },
       where: '${DbConstants.colActOccId} = ?',
@@ -257,20 +271,19 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
   }
 
   @override
-  Future<int> skipOccurrence(int occurrenceId) async {
-    final db = await _dbHelper.database;
-    final now = DateTime.now().toIso8601String();
-    return await db.update(
-      DbConstants.tableActivityOccurrences,
-      {
-        DbConstants.colActOccIsCompleted: 0,
-        DbConstants.colActOccCompletedAt: null,
-        DbConstants.colActOccNotes: 'Skipped',
-        DbConstants.colActOccUpdatedAt: now,
-      },
-      where: '${DbConstants.colActOccId} = ?',
-      whereArgs: [occurrenceId],
+  Future<int> setOccurrenceCompletion(
+    int occurrenceId,
+    bool isCompleted,
+  ) async {
+    return await setOccurrenceStatus(
+      occurrenceId,
+      isCompleted ? 'completed' : 'pending',
     );
+  }
+
+  @override
+  Future<int> skipOccurrence(int occurrenceId) async {
+    return await setOccurrenceStatus(occurrenceId, 'skipped');
   }
 
   @override
@@ -282,11 +295,13 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
     final db = await _dbHelper.database;
     final now = DateTime.now().toIso8601String();
     final isCompleted = actualValue >= targetValue;
+    final status = isCompleted ? 'completed' : 'pending';
 
     return await db.update(
       DbConstants.tableActivityOccurrences,
       {
         DbConstants.colActOccActualValue: actualValue,
+        DbConstants.colActOccStatus: status,
         DbConstants.colActOccIsCompleted: isCompleted ? 1 : 0,
         DbConstants.colActOccCompletedAt: isCompleted ? now : null,
         DbConstants.colActOccUpdatedAt: now,
@@ -303,7 +318,22 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
       await db.rawQuery(
         '''
       SELECT COUNT(*) FROM ${DbConstants.tableActivityOccurrences}
-      WHERE ${DbConstants.colActOccDate} = ? AND ${DbConstants.colActOccIsCompleted} = 1
+      WHERE ${DbConstants.colActOccDate} = ? AND (${DbConstants.colActOccIsCompleted} = 1 OR ${DbConstants.colActOccStatus} = 'completed')
+      ''',
+        [isoDate],
+      ),
+    );
+    return result ?? 0;
+  }
+
+  @override
+  Future<int> getSkippedCountForDate(String isoDate) async {
+    final db = await _dbHelper.database;
+    final result = Sqflite.firstIntValue(
+      await db.rawQuery(
+        '''
+      SELECT COUNT(*) FROM ${DbConstants.tableActivityOccurrences}
+      WHERE ${DbConstants.colActOccDate} = ? AND (${DbConstants.colActOccStatus} = 'skipped' OR ${DbConstants.colActOccNotes} = 'Skipped')
       ''',
         [isoDate],
       ),
@@ -324,5 +354,22 @@ class ActivityLocalDataSourceImpl implements ActivityLocalDataSource {
       ),
     );
     return result ?? 0;
+  }
+
+  @override
+  Future<Map<String, int>> getDailyStats(String isoDate) async {
+    final total = await getTotalCountForDate(isoDate);
+    final completed = await getCompletedCountForDate(isoDate);
+    final skipped = await getSkippedCountForDate(isoDate);
+    final pending = (total - completed - skipped) > 0
+        ? (total - completed - skipped)
+        : 0;
+
+    return {
+      'total': total,
+      'completed': completed,
+      'skipped': skipped,
+      'pending': pending,
+    };
   }
 }

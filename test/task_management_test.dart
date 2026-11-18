@@ -168,7 +168,9 @@ void main() {
         TaskModel(title: 'Temporary Task', dueDate: '2026-11-20'),
       );
 
-      var occurrences = await taskRepository.getOccurrencesForDate('2026-11-20');
+      var occurrences = await taskRepository.getOccurrencesForDate(
+        '2026-11-20',
+      );
       expect(occurrences.length, 1);
 
       await taskRepository.deleteTask(taskId);
@@ -269,47 +271,50 @@ void main() {
   });
 
   group('Dashboard Metrics Calculation', () {
-    test('Calculates total, completed, pending, overdue counts and percentage', () async {
-      final today = AppDateUtils.todayIso;
+    test(
+      'Calculates total, completed, pending, overdue counts and percentage',
+      () async {
+        final today = AppDateUtils.todayIso;
 
-      // 1. Insert 1 overdue task
-      await taskRepository.createTask(
-        TaskModel(title: 'Overdue Task', dueDate: '2026-11-01'),
-      );
+        // 1. Insert 1 overdue task
+        await taskRepository.createTask(
+          TaskModel(title: 'Overdue Task', dueDate: '2026-11-01'),
+        );
 
-      // 2. Insert 4 tasks for today
-      final task1 = await taskRepository.createTask(
-        TaskModel(title: 'Task 1', dueDate: today),
-      );
-      final task2 = await taskRepository.createTask(
-        TaskModel(title: 'Task 2', dueDate: today),
-      );
-      await taskRepository.createTask(
-        TaskModel(title: 'Task 3', dueDate: today),
-      );
-      await taskRepository.createTask(
-        TaskModel(title: 'Task 4', dueDate: today),
-      );
+        // 2. Insert 4 tasks for today
+        final task1 = await taskRepository.createTask(
+          TaskModel(title: 'Task 1', dueDate: today),
+        );
+        final task2 = await taskRepository.createTask(
+          TaskModel(title: 'Task 2', dueDate: today),
+        );
+        await taskRepository.createTask(
+          TaskModel(title: 'Task 3', dueDate: today),
+        );
+        await taskRepository.createTask(
+          TaskModel(title: 'Task 4', dueDate: today),
+        );
 
-      // Complete 2 tasks for today
-      final todayOccs = await taskRepository.getOccurrencesForDate(today);
-      final occ1 = todayOccs.firstWhere((o) => o.taskId == task1);
-      final occ2 = todayOccs.firstWhere((o) => o.taskId == task2);
+        // Complete 2 tasks for today
+        final todayOccs = await taskRepository.getOccurrencesForDate(today);
+        final occ1 = todayOccs.firstWhere((o) => o.taskId == task1);
+        final occ2 = todayOccs.firstWhere((o) => o.taskId == task2);
 
-      await taskRepository.toggleOccurrenceCompletion(occ1.id!, true);
-      await taskRepository.toggleOccurrenceCompletion(occ2.id!, true);
+        await taskRepository.toggleOccurrenceCompletion(occ1.id!, true);
+        await taskRepository.toggleOccurrenceCompletion(occ2.id!, true);
 
-      // Query Stats
-      final stats = await taskRepository.getDailyStats(today);
-      expect(stats['total'], 4);
-      expect(stats['completed'], 2);
-      expect(stats['pending'], 2);
-      expect(stats['overdue'], 1);
+        // Query Stats
+        final stats = await taskRepository.getDailyStats(today);
+        expect(stats['total'], 4);
+        expect(stats['completed'], 2);
+        expect(stats['pending'], 2);
+        expect(stats['overdue'], 1);
 
-      // Verify Percentage: 2 / 4 = 50.0%
-      final percentage = (stats['completed']! / stats['total']!) * 100;
-      expect(percentage, 50.0);
-    });
+        // Verify Percentage: 2 / 4 = 50.0%
+        final percentage = (stats['completed']! / stats['total']!) * 100;
+        expect(percentage, 50.0);
+      },
+    );
 
     test('Handles 0 tasks edge case without division by zero', () {
       const total = 0;

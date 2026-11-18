@@ -3,7 +3,7 @@ class DbConstants {
   DbConstants._();
 
   static const String databaseName = 'daily_flow.db';
-  static const int databaseVersion = 2;
+  static const int databaseVersion = 3;
 
   // --- Table: tasks ---
   static const String tableTasks = 'tasks';
@@ -38,6 +38,8 @@ class DbConstants {
   static const String colActTitle = 'title';
   static const String colActDescription = 'description';
   static const String colActCategory = 'category';
+  static const String colActScheduledTime = 'scheduled_time';
+  static const String colActReminderEnabled = 'reminder_enabled';
   static const String colActIcon = 'icon';
   static const String colActColor = 'color';
   static const String colActTargetFrequency = 'target_frequency';
@@ -52,6 +54,7 @@ class DbConstants {
   static const String colActOccId = 'id';
   static const String colActOccActivityId = 'activity_id';
   static const String colActOccDate = 'occurrence_date';
+  static const String colActOccStatus = 'status'; // pending, completed, skipped
   static const String colActOccIsCompleted = 'is_completed';
   static const String colActOccActualValue = 'actual_value';
   static const String colActOccCompletedAt = 'completed_at';

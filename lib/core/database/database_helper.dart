@@ -108,6 +108,8 @@ class DatabaseHelper {
         ${DbConstants.colActTitle} TEXT NOT NULL,
         ${DbConstants.colActDescription} TEXT,
         ${DbConstants.colActCategory} TEXT DEFAULT 'Personal',
+        ${DbConstants.colActScheduledTime} TEXT,
+        ${DbConstants.colActReminderEnabled} INTEGER NOT NULL DEFAULT 0,
         ${DbConstants.colActIcon} TEXT,
         ${DbConstants.colActColor} TEXT,
         ${DbConstants.colActTargetFrequency} TEXT NOT NULL DEFAULT 'daily',
@@ -125,6 +127,7 @@ class DatabaseHelper {
         ${DbConstants.colActOccId} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${DbConstants.colActOccActivityId} INTEGER NOT NULL,
         ${DbConstants.colActOccDate} TEXT NOT NULL,
+        ${DbConstants.colActOccStatus} TEXT NOT NULL DEFAULT 'pending',
         ${DbConstants.colActOccIsCompleted} INTEGER NOT NULL DEFAULT 0,
         ${DbConstants.colActOccActualValue} INTEGER NOT NULL DEFAULT 0,
         ${DbConstants.colActOccCompletedAt} TEXT,
@@ -200,6 +203,30 @@ class DatabaseHelper {
           ${DbConstants.colSettingKey} TEXT PRIMARY KEY,
           ${DbConstants.colSettingValue} TEXT NOT NULL
         );
+      ''');
+    },
+    3: (db) async {
+      await db.execute('''
+        ALTER TABLE ${DbConstants.tableActivities} 
+        ADD COLUMN ${DbConstants.colActScheduledTime} TEXT;
+      ''');
+      await db.execute('''
+        ALTER TABLE ${DbConstants.tableActivities} 
+        ADD COLUMN ${DbConstants.colActReminderEnabled} INTEGER NOT NULL DEFAULT 0;
+      ''');
+      await db.execute('''
+        ALTER TABLE ${DbConstants.tableActivityOccurrences} 
+        ADD COLUMN ${DbConstants.colActOccStatus} TEXT NOT NULL DEFAULT 'pending';
+      ''');
+      await db.execute('''
+        UPDATE ${DbConstants.tableActivityOccurrences} 
+        SET ${DbConstants.colActOccStatus} = 'completed' 
+        WHERE ${DbConstants.colActOccIsCompleted} = 1;
+      ''');
+      await db.execute('''
+        UPDATE ${DbConstants.tableActivityOccurrences} 
+        SET ${DbConstants.colActOccStatus} = 'skipped' 
+        WHERE ${DbConstants.colActOccNotes} = 'Skipped';
       ''');
     },
   };

@@ -1,10 +1,12 @@
 import '../../core/constants/db_constants.dart';
+import '../../core/utils/date_utils.dart';
 
 /// Represents a date-specific occurrence or daily log of a recurring activity.
 class ActivityOccurrenceModel {
   final int? id;
   final int activityId;
   final String occurrenceDate; // ISO yyyy-MM-dd
+  final String status; // 'pending', 'completed', 'skipped'
   final bool isCompleted;
   final int actualValue;
   final String? completedAt;
@@ -16,6 +18,8 @@ class ActivityOccurrenceModel {
   final String? activityTitle;
   final String? activityDescription;
   final String? category;
+  final String? scheduledTime;
+  final bool? isReminderEnabled;
   final String? icon;
   final String? color;
   final int? targetValue;
@@ -25,7 +29,8 @@ class ActivityOccurrenceModel {
     this.id,
     required this.activityId,
     required this.occurrenceDate,
-    this.isCompleted = false,
+    String? status,
+    bool isCompleted = false,
     this.actualValue = 0,
     this.completedAt,
     this.notes,
@@ -34,18 +39,35 @@ class ActivityOccurrenceModel {
     this.activityTitle,
     this.activityDescription,
     this.category,
+    this.scheduledTime,
+    this.isReminderEnabled,
     this.icon,
     this.color,
     this.targetValue,
     this.unit,
-  }) : createdAt = createdAt ?? DateTime.now().toIso8601String(),
+  }) : isCompleted = isCompleted || status == 'completed',
+       status =
+           status ??
+           (isCompleted
+               ? 'completed'
+               : (notes == 'Skipped' ? 'skipped' : 'pending')),
+       createdAt = createdAt ?? DateTime.now().toIso8601String(),
        updatedAt = updatedAt ?? DateTime.now().toIso8601String();
+
+  bool get isCompletedStatus => status == 'completed' || isCompleted;
+  bool get isSkipped => status == 'skipped' || notes == 'Skipped';
+  bool get isPending => !isCompletedStatus && !isSkipped;
+  bool get isMissedOrOverdue =>
+      isPending && AppDateUtils.isOverdue(occurrenceDate);
 
   Map<String, dynamic> toMap() {
     final map = <String, dynamic>{
       DbConstants.colActOccActivityId: activityId,
       DbConstants.colActOccDate: occurrenceDate,
-      DbConstants.colActOccIsCompleted: isCompleted ? 1 : 0,
+      DbConstants.colActOccStatus: status,
+      DbConstants.colActOccIsCompleted: (status == 'completed' || isCompleted)
+          ? 1
+          : 0,
       DbConstants.colActOccActualValue: actualValue,
       DbConstants.colActOccCompletedAt: completedAt,
       DbConstants.colActOccNotes: notes,
@@ -59,14 +81,23 @@ class ActivityOccurrenceModel {
   }
 
   factory ActivityOccurrenceModel.fromMap(Map<String, dynamic> map) {
+    final isDone = (map[DbConstants.colActOccIsCompleted] as int? ?? 0) == 1;
+    final note = map[DbConstants.colActOccNotes] as String?;
+    final rawStatus = map[DbConstants.colActOccStatus] as String?;
+
+    final computedStatus =
+        rawStatus ??
+        (isDone ? 'completed' : (note == 'Skipped' ? 'skipped' : 'pending'));
+
     return ActivityOccurrenceModel(
       id: map[DbConstants.colActOccId] as int?,
       activityId: map[DbConstants.colActOccActivityId] as int,
       occurrenceDate: map[DbConstants.colActOccDate] as String,
-      isCompleted: (map[DbConstants.colActOccIsCompleted] as int? ?? 0) == 1,
+      status: computedStatus,
+      isCompleted: isDone || computedStatus == 'completed',
       actualValue: map[DbConstants.colActOccActualValue] as int? ?? 0,
       completedAt: map[DbConstants.colActOccCompletedAt] as String?,
-      notes: map[DbConstants.colActOccNotes] as String?,
+      notes: note,
       createdAt:
           map[DbConstants.colActOccCreatedAt] as String? ??
           DateTime.now().toIso8601String(),
@@ -80,6 +111,10 @@ class ActivityOccurrenceModel {
           map['activity_description'] as String? ??
           map[DbConstants.colActDescription] as String?,
       category: map[DbConstants.colActCategory] as String?,
+      scheduledTime: map[DbConstants.colActScheduledTime] as String?,
+      isReminderEnabled: map[DbConstants.colActReminderEnabled] != null
+          ? (map[DbConstants.colActReminderEnabled] as int? ?? 0) == 1
+          : null,
       icon: map[DbConstants.colActIcon] as String?,
       color: map[DbConstants.colActColor] as String?,
       targetValue: map[DbConstants.colActTargetValue] as int?,
@@ -91,6 +126,7 @@ class ActivityOccurrenceModel {
     int? id,
     int? activityId,
     String? occurrenceDate,
+    String? status,
     bool? isCompleted,
     int? actualValue,
     String? completedAt,
@@ -100,6 +136,8 @@ class ActivityOccurrenceModel {
     String? activityTitle,
     String? activityDescription,
     String? category,
+    String? scheduledTime,
+    bool? isReminderEnabled,
     String? icon,
     String? color,
     int? targetValue,
@@ -109,6 +147,7 @@ class ActivityOccurrenceModel {
       id: id ?? this.id,
       activityId: activityId ?? this.activityId,
       occurrenceDate: occurrenceDate ?? this.occurrenceDate,
+      status: status ?? this.status,
       isCompleted: isCompleted ?? this.isCompleted,
       actualValue: actualValue ?? this.actualValue,
       completedAt: completedAt ?? this.completedAt,
@@ -118,6 +157,8 @@ class ActivityOccurrenceModel {
       activityTitle: activityTitle ?? this.activityTitle,
       activityDescription: activityDescription ?? this.activityDescription,
       category: category ?? this.category,
+      scheduledTime: scheduledTime ?? this.scheduledTime,
+      isReminderEnabled: isReminderEnabled ?? this.isReminderEnabled,
       icon: icon ?? this.icon,
       color: color ?? this.color,
       targetValue: targetValue ?? this.targetValue,
@@ -127,5 +168,5 @@ class ActivityOccurrenceModel {
 
   @override
   String toString() =>
-      'ActivityOccurrenceModel(id: $id, activityId: $activityId, date: $occurrenceDate, actual: $actualValue, completed: $isCompleted)';
+      'ActivityOccurrenceModel(id: $id, activityId: $activityId, date: $occurrenceDate, status: $status, completed: $isCompleted)';
 }

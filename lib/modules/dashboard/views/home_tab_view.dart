@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/date_utils.dart';
@@ -157,6 +158,59 @@ class HomeTabView extends GetView<DashboardController> {
                   _buildOverdueAlertBanner(context, theme),
                   const SizedBox(height: 20),
                 ],
+
+                // 2b. Daily Activities & Habits Quick Card
+                CustomCard(
+                  padding: const EdgeInsets.all(14),
+                  borderRadius: 16,
+                  child: InkWell(
+                    onTap: () => Get.toNamed(Routes.activities),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.completed.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.track_changes_rounded,
+                            color: AppColors.completed,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Daily Activities & Habits',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Meals, workout, medication & daily routines',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
                 // 3. Today's Time-Based Timeline Header
                 Row(

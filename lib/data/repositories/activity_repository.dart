@@ -14,15 +14,14 @@ abstract class ActivityRepository {
     String startDate,
     String endDate,
   );
+  Future<int> setOccurrenceStatus(int occurrenceId, String status);
   Future<int> toggleOccurrenceCompletion(int occurrenceId, bool isCompleted);
+  Future<int> skipOccurrence(int occurrenceId);
   Future<int> logOccurrenceProgress(
     int occurrenceId,
     int actualValue,
     int targetValue,
   );
-
-  /// Skip a specific activity occurrence. Returns number of rows affected.
-  Future<int> skipOccurrence(int occurrenceId);
   Future<Map<String, int>> getDailyStats(String isoDate);
 }
 
@@ -76,6 +75,24 @@ class ActivityRepositoryImpl implements ActivityRepository {
   }
 
   @override
+  Future<int> setOccurrenceStatus(int occurrenceId, String status) async {
+    return await _dataSource.setOccurrenceStatus(occurrenceId, status);
+  }
+
+  @override
+  Future<int> toggleOccurrenceCompletion(
+    int occurrenceId,
+    bool isCompleted,
+  ) async {
+    return await _dataSource.setOccurrenceCompletion(occurrenceId, isCompleted);
+  }
+
+  @override
+  Future<int> skipOccurrence(int occurrenceId) async {
+    return await _dataSource.skipOccurrence(occurrenceId);
+  }
+
+  @override
   Future<int> logOccurrenceProgress(
     int occurrenceId,
     int actualValue,
@@ -89,26 +106,7 @@ class ActivityRepositoryImpl implements ActivityRepository {
   }
 
   @override
-  Future<int> skipOccurrence(int occurrenceId) async {
-    return await _dataSource.skipOccurrence(occurrenceId);
-  }
-
-  @override
   Future<Map<String, int>> getDailyStats(String isoDate) async {
-    final completed = await _dataSource.getCompletedCountForDate(isoDate);
-    final total = await _dataSource.getTotalCountForDate(isoDate);
-    return {
-      'completed': completed,
-      'total': total,
-      'pending': total > completed ? total - completed : 0,
-    };
-  }
-
-  @override
-  Future<int> toggleOccurrenceCompletion(
-    int occurrenceId,
-    bool isCompleted,
-  ) async {
-    return await _dataSource.setOccurrenceCompletion(occurrenceId, isCompleted);
+    return await _dataSource.getDailyStats(isoDate);
   }
 }
