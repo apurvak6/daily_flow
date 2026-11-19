@@ -5,6 +5,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../data/models/task_model.dart';
 import '../../../data/models/task_occurrence_model.dart';
 import '../../../data/repositories/task_repository.dart';
+import '../../calendar/controllers/calendar_controller.dart';
 import '../../dashboard/controllers/dashboard_controller.dart';
 
 /// ViewModel controller for task management and date-wise occurrences.
@@ -88,6 +89,11 @@ class TasksController extends GetxController {
       if (Get.isRegistered<DashboardController>()) {
         DashboardController.to.refreshDashboard();
       }
+      if (Get.isRegistered<CalendarController>()) {
+        final cal = Get.find<CalendarController>();
+        cal.loadSelectedDateDetails(cal.selectedDay.value);
+        cal.loadMonthEvents(cal.focusedDay.value);
+      }
       return true;
     } catch (e, stack) {
       AppLogger.error('Failed to create task', e, stack, 'TasksController');
@@ -110,6 +116,11 @@ class TasksController extends GetxController {
       if (Get.isRegistered<DashboardController>()) {
         DashboardController.to.refreshDashboard();
       }
+      if (Get.isRegistered<CalendarController>()) {
+        final cal = Get.find<CalendarController>();
+        cal.loadSelectedDateDetails(cal.selectedDay.value);
+        cal.loadMonthEvents(cal.focusedDay.value);
+      }
       return true;
     } catch (e, stack) {
       AppLogger.error('Failed to update task', e, stack, 'TasksController');
@@ -127,6 +138,11 @@ class TasksController extends GetxController {
 
       if (Get.isRegistered<DashboardController>()) {
         DashboardController.to.refreshDashboard();
+      }
+      if (Get.isRegistered<CalendarController>()) {
+        final cal = Get.find<CalendarController>();
+        cal.loadSelectedDateDetails(cal.selectedDay.value);
+        cal.loadMonthEvents(cal.focusedDay.value);
       }
       return true;
     } catch (e, stack) {

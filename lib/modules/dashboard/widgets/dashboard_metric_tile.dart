@@ -35,7 +35,7 @@ class DashboardMetricTile extends StatelessWidget {
           width: 1,
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -59,6 +59,7 @@ class DashboardMetricTile extends StatelessWidget {
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ],
         ),

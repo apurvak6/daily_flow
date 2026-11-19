@@ -57,6 +57,7 @@ class CalendarView extends GetView<CalendarController> {
           children: [
             // 1. Monthly TableCalendar
             _buildCalendar(theme),
+            _buildCalendarLegend(theme),
             const Divider(height: 1),
 
             // 2. Selected Date Summary and Item Lists
@@ -102,8 +103,14 @@ class CalendarView extends GetView<CalendarController> {
   }
 
   Widget _buildCalendar(ThemeData theme) {
-    return Obx(
-      () => TableCalendar<String>(
+    return Obx(() {
+      // Register reactive dependencies on monthEvents and loading state
+      // so the TableCalendar widget immediately updates with the loaded dots
+      // when navigating between months without requiring a date tap.
+      final _ = controller.monthEvents.length;
+      final _ = controller.isLoadingMonth.value;
+
+      return TableCalendar<String>(
         firstDay: DateTime.utc(2020, 1, 1),
         lastDay: DateTime.utc(2035, 12, 31),
         focusedDay: controller.focusedDay.value,
@@ -169,33 +176,81 @@ class CalendarView extends GetView<CalendarController> {
         ),
         calendarBuilders: CalendarBuilders(
           markerBuilder: (context, date, events) {
-            if (events.isEmpty) return null;
-            final hasTask = events.contains('task');
-            final hasActivity = events.contains('activity');
+            final dayEvents = events.isNotEmpty
+                ? events
+                : controller.getEventsForDay(date);
+            if (dayEvents.isEmpty) return null;
+            final hasTask = dayEvents.contains('task');
+            final hasActivity = dayEvents.contains('activity');
+            if (!hasTask && !hasActivity) return null;
+
+            final isSelected = isSameDay(controller.selectedDay.value, date);
+            final isDark = theme.brightness == Brightness.dark;
 
             return Positioned(
               bottom: 4,
+              left: 0,
+              right: 0,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (hasTask)
                     Container(
-                      width: 5,
-                      height: 5,
-                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryLight,
+                      width: 7,
+                      height: 7,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark
+                                ? AppColors.primaryDark
+                                : AppColors.primaryLight),
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primaryLight
+                              : (isDark
+                                  ? AppColors.surfaceDark
+                                  : Colors.white),
+                          width: 0.8,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 1.5,
+                            offset: const Offset(0, 0.5),
+                          ),
+                        ],
                       ),
                     ),
                   if (hasActivity)
                     Container(
-                      width: 5,
-                      height: 5,
-                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                      decoration: const BoxDecoration(
-                        color: AppColors.completed,
+                      width: 7,
+                      height: 7,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF6EE7B7) // Bright mint on selected circle
+                            : (isDark
+                                ? AppColors.completedDark
+                                : AppColors.completed),
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? Colors.white70
+                              : (isDark
+                                  ? AppColors.surfaceDark
+                                  : Colors.white),
+                          width: 0.8,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 1.5,
+                            offset: const Offset(0, 0.5),
+                          ),
+                        ],
                       ),
                     ),
                 ],
@@ -203,7 +258,65 @@ class CalendarView extends GetView<CalendarController> {
             );
           },
         ),
+      );
+    });
+  }
+
+  Widget _buildCalendarLegend(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _buildLegendItem(
+            color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+            label: 'Tasks',
+            theme: theme,
+          ),
+          const SizedBox(width: 16),
+          _buildLegendItem(
+            color: isDark ? AppColors.completedDark : AppColors.completed,
+            label: 'Activities',
+            theme: theme,
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildLegendItem({
+    required Color color,
+    required String label,
+    required ThemeData theme,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.35),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 

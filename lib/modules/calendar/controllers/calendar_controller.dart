@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../data/models/activity_occurrence_model.dart';
@@ -81,17 +82,17 @@ class CalendarController extends GetxController {
   Future<void> loadMonthEvents(DateTime month) async {
     try {
       isLoadingMonth.value = true;
-      // Start 7 days before month start and 7 days after month end to cover calendar buffer
+      // Start 14 days before month start and 14 days after month end to cover calendar buffer
       final first = DateTime(
         month.year,
         month.month,
         1,
-      ).subtract(const Duration(days: 7));
+      ).subtract(const Duration(days: 14));
       final last = DateTime(
         month.year,
         month.month + 1,
         0,
-      ).add(const Duration(days: 7));
+      ).add(const Duration(days: 14));
 
       final startIso = AppDateUtils.toIsoDate(first);
       final endIso = AppDateUtils.toIsoDate(last);
@@ -121,7 +122,69 @@ class CalendarController extends GetxController {
         }
       }
 
-      monthEvents.assignAll(eventMap);
+      // Project recurring tasks and active activities across visible calendar days
+      final allTasks = await taskRepository.getAllTasks();
+      final recurringTasks = allTasks.where((t) => t.isRecurring).toList();
+      final activeActivities = await activityRepository.getAllActivities(
+        onlyActive: true,
+      );
+
+      DateTime cursor = first;
+      while (!cursor.isAfter(last)) {
+        final iso = AppDateUtils.toIsoDate(cursor);
+        final isWeekday =
+            cursor.weekday >= DateTime.monday &&
+            cursor.weekday <= DateTime.friday;
+
+        if (recurringTasks.isNotEmpty) {
+          eventMap.putIfAbsent(iso, () => []);
+          if (!eventMap[iso]!.contains('task')) {
+            for (final t in recurringTasks) {
+              bool applies = false;
+              if (t.recurrenceType == AppConstants.recurrenceDaily) {
+                applies = true;
+              } else if (t.recurrenceType == AppConstants.recurrenceWeekdays &&
+                  isWeekday) {
+                applies = true;
+              } else if (t.recurrenceType == AppConstants.recurrenceWeekly &&
+                  t.dueDate != null) {
+                final due = AppDateUtils.fromIsoDate(t.dueDate!);
+                applies = due.weekday == cursor.weekday;
+              }
+              if (applies) {
+                eventMap[iso]!.add('task');
+                break;
+              }
+            }
+          }
+        }
+
+        if (activeActivities.isNotEmpty) {
+          eventMap.putIfAbsent(iso, () => []);
+          if (!eventMap[iso]!.contains('activity')) {
+            for (final a in activeActivities) {
+              bool applies = false;
+              if (a.targetFrequency == AppConstants.frequencyDaily) {
+                applies = true;
+              } else if (a.targetFrequency == AppConstants.frequencyWeekdays &&
+                  isWeekday) {
+                applies = true;
+              } else {
+                applies = true;
+              }
+              if (applies) {
+                eventMap[iso]!.add('activity');
+                break;
+              }
+            }
+          }
+        }
+
+        cursor = cursor.add(const Duration(days: 1));
+      }
+
+      monthEvents.addAll(eventMap);
+      monthEvents.refresh();
     } catch (e, stack) {
       AppLogger.error(
         'Failed to load month events',
