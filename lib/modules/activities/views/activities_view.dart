@@ -159,17 +159,18 @@ class ActivitiesView extends GetView<ActivitiesController> {
                     ? 'No activities scheduled for ${AppDateUtils.formatDisplay(AppDateUtils.fromIsoDate(controller.selectedDate.value))}. Tap "New Activity" to configure your daily habits!'
                     : 'No ${controller.statusFilter.value} activities for this date.',
                 actionLabel: controller.statusFilter.value == 'all'
-                    ? 'Add Daily Activity'
+                    ? null //'Add Daily Activity'
                     : 'Show All',
                 actionIcon: controller.statusFilter.value == 'all'
-                    ? Icons.add_rounded
+                    ? null //Icons.add_rounded
                     : Icons.visibility_outlined,
                 onAction: () {
-                  if (controller.statusFilter.value == 'all') {
-                    ActivityFormSheet.show(context);
-                  } else {
-                    controller.setFilter('all');
-                  }
+                  // if (controller.statusFilter.value == 'all') {
+                  //   ActivityFormSheet.show(context);
+                  // }
+                  // else {
+                  controller.setFilter('all');
+                  // }
                 },
               );
             }
@@ -218,9 +219,9 @@ class ActivitiesView extends GetView<ActivitiesController> {
           title: 'No Routines Configured',
           description:
               'Set up recurring daily activities like Breakfast, Lunch, Exercise, Medication, or Custom Routines.',
-          actionLabel: 'Add Routine',
-          actionIcon: Icons.add_rounded,
-          onAction: () => ActivityFormSheet.show(context),
+          // actionLabel: 'Add Routine',
+          // actionIcon: Icons.add_rounded,
+          // onAction: () => ActivityFormSheet.show(context),
         );
       }
 

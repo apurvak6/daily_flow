@@ -173,21 +173,24 @@ class TasksView extends GetView<TasksController> {
                     description: isFiltered
                         ? 'Try clearing search filters or selecting another category.'
                         : 'Schedule tasks for this date to stay productive.',
-                    actionLabel: isFiltered ? 'Clear Filters' : 'Add Task',
+                    actionLabel: isFiltered
+                        ? 'Clear Filters'
+                        : null, //'Add Task',
                     actionIcon: isFiltered
                         ? Icons.filter_alt_off_rounded
-                        : Icons.add_rounded,
+                        : null, //Icons.add_rounded,
                     onAction: () {
                       if (isFiltered) {
                         controller.setSearchQuery('');
                         controller.setCategoryFilter('All');
                         controller.setStatusFilter('All');
-                      } else {
-                        TaskFormSheet.show(
-                          context,
-                          initialDateIso: controller.selectedDate.value,
-                        );
                       }
+                      // else {
+                      //   TaskFormSheet.show(
+                      //     context,
+                      //     initialDateIso: controller.selectedDate.value,
+                      //   );
+                      // }
                     },
                   );
                 }

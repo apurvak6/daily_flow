@@ -247,9 +247,9 @@ class HomeTabView extends GetView<DashboardController> {
                     icon: Icons.calendar_today_outlined,
                     title: 'No tasks scheduled for today',
                     description:
-                        'Your day is clear! Tap "Quick Add" to plan your schedule.',
-                    actionLabel: 'Schedule a Task',
-                    onAction: () => TaskFormSheet.show(context),
+                        'Your day is clear! Tap "New Task" to plan your schedule.',
+                    // actionLabel: 'Schedule a Task',
+                    // onAction: () => TaskFormSheet.show(context),
                   )
                 else
                   ...List.generate(controller.todayTimelineTasks.length, (
