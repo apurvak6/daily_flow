@@ -1,182 +1,163 @@
 # DailyFlow — Daily Task & Activity Management App
 
 > **Senior Flutter Architecture & Engineering Assignment**  
-> An offline-first, high-performance daily task, activity, and habit management application engineered with Flutter, Dart, GetX, and SQLite.
+> An offline-first, high-performance daily task, recurring activity, and habit management application engineered with Flutter, Dart, GetX, and SQLite.
+
+---
+
+## Table of Contents
+1. [Project Overview & Problem Statement](#1-project-overview--problem-statement)
+2. [Key Features](#2-key-features)
+3. [Architecture Overview](#3-architecture-overview)
+   - [MVVM + Repository Pattern](#mvvm--repository-pattern)
+   - [Unidirectional Data Flow Diagram](#unidirectional-data-flow-diagram)
+   - [State Management & Dependency Injection](#state-management--dependency-injection)
+   - [On-Demand Occurrence Engine](#on-demand-occurrence-engine)
+4. [Database Choice & Justification](#4-database-choice--justification)
+   - [Why SQLite? (Comparative Analysis)](#why-sqlite-comparative-analysis)
+   - [Relational Schema & Tables](#relational-schema--tables)
+   - [High-Performance Date Indexes](#high-performance-date-indexes)
+   - [Entity Relationship Diagram](#entity-relationship-diagram)
+5. [Setup & Installation Instructions](#5-setup--installation-instructions)
+   - [Prerequisites](#prerequisites)
+   - [Step-by-Step Installation](#step-by-step-installation)
+   - [Running the Application](#running-the-application)
+   - [Executing Tests](#executing-tests)
+   - [Building Android APKs](#building-android-apks)
+6. [Notifications & Background Scheduling](#6-notifications--background-scheduling)
+   - [Deterministic ID Partitioning Scheme](#deterministic-id-partitioning-scheme)
+   - [Scheduling Engine & Recurrence Logic](#scheduling-engine--recurrence-logic)
+   - [Startup & Resume Reconciliation Pipeline](#startup--resume-reconciliation-pipeline)
+   - [Boot Receiver & Alarm Survival](#boot-receiver--alarm-survival)
+7. [Statistics, Reports & Analytics (Phase 5)](#7-statistics-reports--analytics-phase-5)
+   - [Reporting Architecture](#reporting-architecture)
+   - [Calculation & Aggregation Rules](#calculation--aggregation-rules)
+   - [Read-Only Historical Integrity](#read-only-historical-integrity)
+8. [Known Operating System Limitations & Platform Constraints](#8-known-operating-system-limitations--platform-constraints)
+9. [Technology Stack & Dependencies](#9-technology-stack--dependencies)
+10. [Directory Structure](#10-directory-structure)
 
 ---
 
 ## 1. Project Overview & Problem Statement
 
 ### Overview
-**DailyFlow** is designed to bring order, clarity, and consistency to daily routines and professional workloads. Built with clean architecture and reactive state management, DailyFlow allows users to organize one-off tasks, track daily recurring activities and habits, inspect calendar timelines, and analyze productivity trends over time—all completely offline without requiring an account or network connection.
+**DailyFlow** is a professional, offline-first task and habit management mobile application designed to bring structure, clarity, and consistency to daily routines and professional workloads. Built with clean architecture, reactive state management, and an on-device relational SQLite database, DailyFlow enables users to organize one-time tasks, manage daily recurring routines (e.g., Breakfast, Medication, Exercise, Meetings), track completion timelines on an interactive calendar, and review productivity statistics—all completely offline with zero reliance on cloud services.
 
 ### Problem Statement
-Most modern productivity and habit-tracking applications rely heavily on cloud synchronization, resulting in latency, privacy vulnerabilities, and app failure in low-connectivity or air-gapped environments. Furthermore, recurring task engines in simpler to-do apps often overwrite previous completion states or mistakenly pre-generate thousands of database records into the future, causing database bloat, slow queries, and inconsistent date-wise completion history.
+Most modern to-do and habit-tracking applications rely heavily on cloud APIs, creating network latency, requiring user accounts, risking privacy leakage, and failing in low-connectivity or air-gapped environments. Furthermore, recurring task engines in simpler applications frequently suffer from two critical architectural flaws:
+1. **Destructive Overwrites**: Updating today's recurrence status inadvertently mutates past records or alters future occurrences.
+2. **Pre-generation Database Bloat**: Inefficiently pre-inserting thousands of future recurrence rows causes slow queries, excessive disk usage, and duplicate rows.
 
-**DailyFlow solves these challenges by:**
-1. Operating **100% offline-first** using a lightweight, relational SQLite database with strict foreign key constraints and transactional integrity.
-2. Employing an **on-demand date occurrence engine** that maintains isolated, historical completion records without duplicate occurrences or future state contamination.
-3. Leveraging a strict **MVVM + Repository Pattern** architecture that decouples UI rendering from business rules and database mechanics.
-
----
-
-## 2. Key Features Planned
-
-- [x] **Solid Architectural Foundation**: MVVM with Repository Pattern, clean layers, and GetX dependency injection.
-- [x] **Relational Offline SQLite Database**: 4 normalized tables with cascades, unique constraints, and date indexes.
-- [x] **Occurrence Isolation Engine**: Date-wise occurrence isolation preventing past/future state overwrite.
-- [x] **Material 3 Theming System**: Centralized Light and Dark themes with customizable status semantics.
-- [x] **5-Tab Responsive Shell Navigation**: Home, Tasks, Calendar, Reports, and Settings.
-- [x] **Premium Dashboard UI (Phase 2)**: Today's metrics, progress card, completion %, chronological timeline, and upcoming tasks.
-- [x] **Complete Task Management (Phase 2)**: Add, edit, delete, mark completed, recurrence (one-time & daily), date ribbon, search, category & status filters, with inline form validation.
-- [x] **Daily Recurring Activities & Habits (Phase 3)**: Daily recurring activities (Breakfast, Lunch, Exercise, Meetings, Medication), scheduled time, reminder toggle, active/inactive status, and date-wise occurrence history.
-- [x] **Occurrence Status Engine (Phase 3)**: Completed, Skipped, Pending statuses, and automatic Missed/Overdue identification with strict date isolation.
-- [x] **Interactive Calendar View (Phase 3)**: Monthly `table_calendar` view with dual-color event markers (tasks & activities), date summary cards, month navigation, and one-tap "Today" action.
-- [x] **Local Reminders & Notifications (Phase 4)**: Offline native scheduled alerts (`flutter_local_notifications`), exact alarms, boot receivers, startup/resume reconciliation, and settings management.
-- [x] **Visual Productivity Analytics (Phase 5)**: Daily, weekly, category charts (`fl_chart`), and date-wise read-only history.
+### How DailyFlow Solves These Challenges:
+- **100% Offline-First Relational Engine**: Operates locally using SQLite with enforced foreign key cascades, unique constraints, and atomic transactions.
+- **On-Demand Occurrence Engine**: Maintains an isolated, date-specific execution log for recurring tasks and daily routines. Past history remains immutable, future occurrences remain untouched, and duplicate records are strictly prevented.
+- **Strict Layer Decoupling**: Implements an enterprise-grade **MVVM + Repository Pattern** using GetX for dependency injection and fine-grained reactive updates (`Obx`), ensuring zero SQL or business logic leaks into UI widgets.
 
 ---
 
-## 3. Technology Stack & Dependencies
+## 2. Key Features
 
-| Category | Technology | Purpose & Justification |
-| :--- | :--- | :--- |
-| **Framework** | Flutter 3.50+ / Dart 3.14+ | Cross-platform native compilation, null-safe language features. |
-| **State Management & DI** | `get: ^4.7.3` | Reactive state management (`Obx`, `Rx`), dependency injection (`Bindings`, `Get.put`, `Get.lazyPut`), and named routing. |
-| **Local Persistence** | `sqflite: ^2.4.6` | SQLite plugin for local, atomic, SQL-backed relational persistence. |
-| **Path Utilities** | `path: ^1.9.1`, `path_provider: ^2.1.6` | Resolution of platform-standard directory paths for SQLite database files. |
-| **Date & Time Formatting** | `intl: ^0.20.3` | ISO `yyyy-MM-dd` date formatting, parsing, and calendar localization. |
-| **Charts & Analytics** | `fl_chart: ^1.3.1` | High-performance, customizable bar and line charts for weekly completion metrics. |
-| **Calendar Engine** | `table_calendar: ^3.3.0` | Flexible calendar grid with date selection callbacks and marker builders. |
-| **Local Notifications** | `flutter_local_notifications: ^23.0.2` | Native on-device scheduled reminders without third-party cloud services. |
-| **Testing Driver** | `sqflite_common_ffi: ^2.4.7` *(dev)* | In-memory SQLite FFI driver allowing offline database unit testing on desktop/CI. |
-| **Linter** | `flutter_lints: ^6.0.0` *(dev)* | Official Effective Dart coding standards and analyzer rules. |
+| Category | Features Included |
+| :--- | :--- |
+| **Dashboard** | • Today's summary card with dynamic completion percentage and progress ring<br>• Metric counters for Completed, Pending, and Overdue tasks<br>• Chronological today's activity timeline<br>• Upcoming tasks list and quick-action completion toggles |
+| **Task Management** | • Full CRUD (Create, Read, Update, Delete) for tasks with inline validation<br>• Support for one-time tasks and recurring tasks (Daily, Weekdays, Weekly)<br>• Category tagging (`Work`, `Personal`, `Health`, `Food`, `Others`) and priority levels (`Low`, `Medium`, `High`)<br>• Date selection, due time, and local reminder toggle<br>• Search bar and filters by Category and Completion Status |
+| **Daily Activities & Routines** | • Recurring routines (e.g., Breakfast, Lunch, Exercise, Meetings, Medication)<br>• Dual-tab interface: Daily Schedule view and All Routines master manager<br>• Occurrence status engine: **Completed**, **Skipped**, and **Pending**<br>• Date-wise occurrence isolation ensuring future occurrences are never contaminated |
+| **Interactive Calendar** | • Monthly `TableCalendar` view with smooth swipe and header chevrons<br>• Dynamic dual-color event marker dots (Indigo for Tasks, Emerald for Activities)<br>• High-contrast visibility on selected and dark-theme days<br>• Selected date summary card and segmented Tasks/Activities lists |
+| **Statistics & Reports** | • **Daily Report**: Performance donut charts, task completion %, activity counts<br>• **Weekly Report**: 7-day progression bar chart (`fl_chart`), week totals, day-by-day comparison<br>• **Category Summary**: Activity breakdown by category with completion rates<br>• **Date-wise History**: Strictly read-only historical timeline with filter chips |
+| **Notifications & Background** | • Native offline scheduling via `flutter_local_notifications`<br>• Exact alarm support (`SCHEDULE_EXACT_ALARM`) with graceful inexact fallback<br>• Device reboot recovery (`ScheduledNotificationBootReceiver`)<br>• Cold start and background resume reconciliation pipeline |
+| **UI/UX & Theming** | • Modern Material 3 design with custom typography and smooth animations<br>• Dynamic Light and Dark theme support persisted locally<br>• Safe Area handling for modern edge-to-edge Android and iOS gesture bars |
 
 ---
 
-## 4. Architecture Overview
+## 3. Architecture Overview
 
-DailyFlow enforces a unidirectional architectural flow ensuring that UI components remain dumb and reactive, business logic is isolated, and data sources can be swapped or tested independently.
-
-### Architecture Flow
+DailyFlow follows an **MVVM (Model-View-ViewModel) Architecture** combined with the **Repository Pattern** and **Clean Layer Separation**.
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │                   View (UI Layer)                      │
-│   • Dumb widgets (Stateless / GetView)                 │
-│   • Listens to Controller observables via Obx          │
-│   • Delegates user events to Controller methods        │
+│   • Stateless widgets and GetView implementations       │
+│   • Binds to Controller observables using Obx          │
+│   • Emits user events; contains zero business logic    │
 └───────────────────────────▲────────────────────────────┘
-                            │ (Events / Observable State)
+                            │ (User Events / Obx Reactive Stream)
 ┌───────────────────────────▼────────────────────────────┐
 │              GetX Controller (ViewModel)               │
-│   • Manages view state (isLoading, selectedDate, lists)│
-│   • Contains zero SQL or UI layout logic               │
-│   • Injected via GetX Bindings                         │
+│   • Manages observable state (RxBool, RxList, RxString)│
+│   • Coordinates UI actions with Repositories           │
+│   • Injected via GetX Bindings per feature route       │
 └───────────────────────────▲────────────────────────────┘
-                            │ (Domain Models / Futures)
+                            │ (Domain Entities & Results)
 ┌───────────────────────────▼────────────────────────────┐
 │             Repository (Domain Layer)                  │
-│   • Interface contract (TaskRepository)                │
-│   • Orchestrates business rules & daily statistics     │
-│   • Aggregates multiple datasources if needed          │
+│   • Abstract contracts (TaskRepository, ActivityRepo)  │
+│   • Implements domain rules and business validations   │
+│   • Triggers notification scheduling on state changes  │
 └───────────────────────────▲────────────────────────────┘
-                            │ (CRUD Contracts)
+                            │ (Data Transfer Models)
 ┌───────────────────────────▼────────────────────────────┐
 │            Local DataSource (Data Layer)               │
-│   • Translates models to/from SQLite Maps              │
+│   • Converts models to/from SQLite Map records         │
 │   • Executes queries, raw SQL, and atomic transactions │
+│   • Implements duplicate guards and recurrence rules   │
 └───────────────────────────▲────────────────────────────┘
-                            │ (SQL / Transactions)
+                            │ (Atomic SQL & Pragma)
 ┌───────────────────────────▼────────────────────────────┐
 │          DatabaseHelper (SQLite Engine)                │
 │   • Singleton SQLite connection manager                │
-│   • Foreign key enforcement & schema migrations        │
+│   • PRAGMA foreign_keys = ON enforcement               │
+│   • Versioned schema creation and migrations           │
 └────────────────────────────────────────────────────────┘
 ```
 
----
+### Unidirectional Data Flow Diagram
 
-## 5. Directory Structure
+```mermaid
+graph TD
+    UI[View / UI Widget] -->|User Input / Action| C[GetX Controller]
+    C -->|Invokes Operation| R[Repository]
+    R -->|Executes Query/Transaction| DS[Local DataSource]
+    DS -->|SQL Query / Mutation| DB[(SQLite Database)]
+    DB -->|Raw Records / Cursor| DS
+    DS -->|Data Models| R
+    R -->|Domain Models / Status| C
+    C -->|Mutates Rx State| C
+    C -.->|Obx Reactive Rebuild| UI
+```
 
-```
-lib/
-├── main.dart                               # Application bootstrap, service init & GetMaterialApp
-├── app/
-│   ├── bindings/
-│   │   └── initial_binding.dart            # Global DI container (DatabaseHelper, Repositories)
-│   ├── routes/
-│   │   ├── app_pages.dart                  # GetPage definitions connecting routes to views & bindings
-│   │   └── app_routes.dart                 # Centralized route name string constants
-│   └── theme/
-│       ├── app_colors.dart                 # Indigo primary, slate neutrals, status semantics
-│       ├── app_theme.dart                  # Material 3 lightTheme and darkTheme configurations
-│       └── app_typography.dart             # Material 3 typography definitions
-├── core/
-│   ├── constants/
-│   │   ├── app_constants.dart              # Global constants, date formats, priority keys
-│   │   └── db_constants.dart               # Table, column, and index string constants
-│   ├── database/
-│   │   └── database_helper.dart            # SQLite singleton, schema init, PRAGMA foreign keys, migrations
-│   ├── services/
-│   │   └── notification_service.dart       # Local notification scheduling service wrapper
-│   ├── utils/
-│   │   ├── app_logger.dart                 # Production debug and error logging utility
-│   │   └── date_utils.dart                 # ISO date formatting, normalization, and week range helpers
-│   └── widgets/
-│       ├── custom_card.dart                # Rounded Material 3 card container
-│       ├── empty_state_widget.dart         # Reusable zero-data presentation widget
-│       └── status_badge.dart               # Completed (green), Pending (orange), Overdue (red) badges
-├── data/
-│   ├── datasources/
-│   │   ├── activity_local_datasource.dart  # SQLite queries and transactions for activities & habits
-│   │   └── task_local_datasource.dart      # SQLite queries and transactions for tasks & occurrences
-│   ├── models/
-│   │   ├── activity_model.dart             # Master activity entity (toMap, fromMap, copyWith)
-│   │   ├── activity_occurrence_model.dart  # Date-specific activity log entity
-│   │   ├── task_model.dart                 # Master task entity (toMap, fromMap, copyWith)
-│   │   └── task_occurrence_model.dart      # Date-specific task occurrence entity
-│   └── repositories/
-│       ├── activity_repository.dart        # Activity repository contract and implementation
-│       └── task_repository.dart            # Task repository contract and implementation
-└── modules/
-    ├── dashboard/
-    │   ├── bindings/dashboard_binding.dart # Dashboard & bottom nav dependency setup
-    │   ├── controllers/dashboard_controller.dart # Active navigation tab state
-    │   ├── views/dashboard_view.dart       # Scaffold hosting Material 3 NavigationBar
-    │   └── views/home_tab_view.dart        # Home dashboard overview tab view
-    ├── tasks/
-    │   ├── bindings/tasks_binding.dart
-    │   ├── controllers/tasks_controller.dart
-    │   └── views/tasks_view.dart
-    ├── activities/
-    │   ├── bindings/activities_binding.dart
-    │   ├── controllers/activities_controller.dart
-    │   └── views/activities_view.dart
-    ├── calendar/
-    │   ├── bindings/calendar_binding.dart
-    │   ├── controllers/calendar_controller.dart
-    │   └── views/calendar_view.dart
-    ├── reports/
-    │   ├── bindings/reports_binding.dart
-    │   ├── controllers/reports_controller.dart
-    │   └── views/reports_view.dart
-    └── settings/
-        ├── bindings/settings_binding.dart
-        ├── controllers/settings_controller.dart
-        └── views/settings_view.dart
-```
+### State Management & Dependency Injection
+- **GetX State Management**: Fine-grained reactive primitives (`RxBool`, `RxInt`, `RxList`, `RxMap`) combined with `Obx` rebuild only the specific widgets that depend on modified state.
+- **Bindings & Dependency Injection**: Every feature module has a dedicated binding (`DashboardBinding`, `TasksBinding`, `CalendarBinding`, `ReportsBinding`, `SettingsBinding`). Services and repositories are registered lazily via `Get.lazyPut()` or globally on app start in `InitialBinding`, ensuring deterministic lifecycles and easy test mocking.
+
+### On-Demand Occurrence Engine
+To eliminate duplicate rows and avoid pre-generating thousands of blank future dates, DailyFlow implements an **On-Demand Occurrence Engine**:
+1. **Master Records (`tasks`, `activities`)**: Define the template (title, category, recurrence rule, reminder time).
+2. **Occurrence Records (`task_occurrences`, `activity_occurrences`)**: Represent the execution state of an entity on a specific date (`occurrence_date`).
+3. **Lazy Materialization**: When a user navigates to a date or opens the dashboard, `getOccurrencesForDate(isoDate)` inspects active recurring rules and inserts an occurrence using `INSERT OR IGNORE` protected by `UNIQUE(entity_id, occurrence_date)`.
+4. **Historical Isolation**: Marking an occurrence completed or skipped updates only that date's row. Past history and future recurrences remain completely decoupled.
 
 ---
 
-## 6. Database Architecture
+## 4. Database Choice & Justification
 
-The local database (`daily_flow.db`) is managed through the `DatabaseHelper` singleton. Foreign key enforcement is explicitly activated on connection open via `PRAGMA foreign_keys = ON;`.
+### Why SQLite? (Comparative Analysis)
 
-### Table Definitions
+During architectural planning, **SQLite** (via `sqflite`) was selected over NoSQL alternatives (Hive, Isar) and key-value preferences (SharedPreferences):
 
-#### 1. `tasks`
-Master record defining a task's template and rules.
+| Criteria | SQLite (`sqflite`) | Hive / Isar (NoSQL) | SharedPreferences |
+| :--- | :--- | :--- | :--- |
+| **Relational Integrity** | **Excellent**: Strict Foreign Keys with `ON DELETE CASCADE` automatically clean up occurrences when master tasks are deleted. | **Poor**: Requires manual cleanup code; orphaned records can easily occur on crash. | **None**: Flat key-value pairs only. |
+| **Aggregations & Analytics** | **Excellent**: Live SQL aggregations (`COUNT`, `SUM`, `GROUP BY`, `BETWEEN ? AND ?`) execute at the C engine level in microseconds without memory overhead. | **Moderate**: Requires loading large record sets into Dart memory to filter and reduce. | **Unusable**: Cannot perform multi-attribute analytical queries. |
+| **Duplicate Prevention** | **Native**: Composite `UNIQUE(task_id, occurrence_date)` constraints and `ConflictAlgorithm.ignore` prevent duplicate records at the database level. | **Manual**: Requires manual indexing and in-memory duplicate check loops. | **None**. |
+| **Transaction Safety** | **ACID Compliant**: Multi-step operations execute inside `runInTransaction`, guaranteeing all-or-nothing execution. | **Limited**: Box-level atomic writes, but lack full relational multi-table transactions. | **None**. |
+| **Testability** | **Seamless**: `sqflite_common_ffi` enables in-memory SQLite execution (`inMemoryDatabasePath`) for fast headless unit testing. | Requires custom temporary directory mocks on desktop/CI environments. | Mock-dependent. |
+
+### Relational Schema & Tables
+
+The database file `daily_flow.db` is managed by `DatabaseHelper`. Foreign keys are enforced on every connection via `PRAGMA foreign_keys = ON;`.
+
+#### 1. `tasks` (Master Task Table)
 ```sql
 CREATE TABLE tasks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -195,8 +176,7 @@ CREATE TABLE tasks (
 );
 ```
 
-#### 2. `task_occurrences`
-Individual date-specific execution instance of a task.
+#### 2. `task_occurrences` (Date-specific Task Execution Table)
 ```sql
 CREATE TABLE task_occurrences (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -212,8 +192,7 @@ CREATE TABLE task_occurrences (
 );
 ```
 
-#### 3. `activities`
-Master record defining a daily habit or routine template.
+#### 3. `activities` (Master Recurring Routine Table)
 ```sql
 CREATE TABLE activities (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -226,18 +205,20 @@ CREATE TABLE activities (
   target_value INTEGER NOT NULL DEFAULT 1,
   unit TEXT DEFAULT 'times',
   is_active INTEGER NOT NULL DEFAULT 1,
+  scheduled_time TEXT,
+  reminder_enabled INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 ```
 
-#### 4. `activity_occurrences`
-Individual date-specific log of activity completion and progress.
+#### 4. `activity_occurrences` (Date-specific Activity Log Table)
 ```sql
 CREATE TABLE activity_occurrences (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   activity_id INTEGER NOT NULL,
   occurrence_date TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
   is_completed INTEGER NOT NULL DEFAULT 0,
   actual_value INTEGER NOT NULL DEFAULT 0,
   completed_at TEXT,
@@ -249,8 +230,7 @@ CREATE TABLE activity_occurrences (
 );
 ```
 
-#### 5. `app_settings` (v2 Migration)
-Key-value preference storage ensuring offline-first persistence without introducing external preferences packages.
+#### 5. `app_settings` (Application Preferences Table)
 ```sql
 CREATE TABLE app_settings (
   key TEXT PRIMARY KEY,
@@ -271,7 +251,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_occurrences_act_id ON activity_occurrenc
 
 ```mermaid
 erDiagram
-    tasks ||--o{ task_occurrences : "has date instances (1:N)"
+    tasks ||--o{ task_occurrences : "generates (1:N)"
     tasks {
         INTEGER id PK
         TEXT title
@@ -297,18 +277,16 @@ erDiagram
         TEXT created_at
         TEXT updated_at
     }
-    activities ||--o{ activity_occurrences : "has daily logs (1:N)"
+    activities ||--o{ activity_occurrences : "logs (1:N)"
     activities {
         INTEGER id PK
         TEXT title
         TEXT description
         TEXT category
-        TEXT icon
-        TEXT color
         TEXT target_frequency
-        INTEGER target_value
-        TEXT unit
         INTEGER is_active
+        TEXT scheduled_time
+        INTEGER reminder_enabled
         TEXT created_at
         TEXT updated_at
     }
@@ -316,8 +294,8 @@ erDiagram
         INTEGER id PK
         INTEGER activity_id FK
         TEXT occurrence_date
+        TEXT status
         INTEGER is_completed
-        INTEGER actual_value
         TEXT completed_at
         TEXT notes
         TEXT created_at
@@ -331,320 +309,241 @@ erDiagram
 
 ---
 
-## 7. Application Initialization Flow
-
-When DailyFlow starts, the following sequence executes deterministically:
-
-```mermaid
-sequenceDiagram
-    participant OS as Operating System
-    participant Main as main()
-    participant DB as DatabaseHelper
-    participant NS as NotificationService
-    participant GetX as GetMaterialApp / InitialBinding
-    participant UI as DashboardView
-
-    OS->>Main: App Launch
-    Main->>Main: WidgetsFlutterBinding.ensureInitialized()
-    Main->>DB: DatabaseHelper.instance.database
-    DB->>DB: Open SQLite, enable PRAGMA foreign_keys, execute schema & migrations
-    Main->>DB: Query app_settings for saved theme mode
-    Main->>NS: NotificationService().init()
-    NS->>NS: Setup Android/Darwin notification channels
-    Main->>GetX: runApp(DailyFlowApp(initialThemeMode: savedMode))
-    GetX->>GetX: InitialBinding().dependencies() (Inject DB, DataSources, Repositories)
-    GetX->>GetX: Resolve initial route (Routes.dashboard)
-    GetX->>UI: Bind DashboardBinding & render DashboardView with saved ThemeMode
-```
-
----
-
-## 8. Development & Installation Guide
+## 5. Setup & Installation Instructions
 
 ### Prerequisites
-- Flutter SDK `^3.50.0` or higher
-- Dart SDK `^3.14.0` or higher
+Before setting up DailyFlow, ensure your development environment satisfies the following requirements:
 
-### Installation
-1. Clone the repository and navigate to the project directory:
+| Tool | Minimum Version | Description |
+| :--- | :--- | :--- |
+| **Flutter SDK** | `3.50.0` (tested on this version) | Cross-platform framework SDK |
+| **Dart SDK** | Bundled with Flutter 3.50 (`^3.11.0`+) | Core programming language runtime |
+| **Java Development Kit** | OpenJDK 11 or 17 | Required by Gradle Android build system |
+| **Android Studio / SDK** | Android Studio Koala / Ladybug (SDK API 33+) | Android build tools and emulator |
+| **Xcode** *(macOS only)* | Xcode 15.0+ | Required for compiling and running on iOS |
+| **CocoaPods** *(macOS only)* | `1.12.0+` (`sudo gem install cocoapods`) | Dependency manager for iOS native pods |
+
+### Step-by-Step Installation
+
+1. **Clone the repository**:
    ```bash
+   git clone https://github.com/your-org/daily_flow.git
    cd daily_flow
    ```
-2. Retrieve dependencies:
+
+2. **Retrieve project dependencies**:
    ```bash
    flutter pub get
    ```
-3. Run code formatting:
+
+3. **Verify Flutter environment health**:
+   ```bash
+   flutter doctor
+   ```
+   *Ensure Flutter, Android toolchain, and Xcode (if on macOS) report no blocking issues.*
+
+4. **Run code formatting & static analysis**:
    ```bash
    dart format .
-   ```
-4. Run static analysis:
-   ```bash
    flutter analyze
    ```
-5. Execute the test suite:
-   ```bash
-   flutter test
-   ```
-6. Run the application on a simulator or device:
-   ```bash
-   flutter run
-   ```
+   *The repository maintains 0 analyzer warnings.*
 
-### Inspecting or Resetting the Local SQLite Database
-During development, the SQLite database is located at:
-- **macOS / iOS Simulator**:
-  `~/Library/Containers/<AppBundleID>/Data/Documents/daily_flow.db`
-- **Android**:
-  `/data/data/com.example.daily_flow/databases/daily_flow.db`
+### Running the Application
 
-#### To Reset the Database:
-- **On Device/Simulator**: Clear app storage in device settings or uninstall the app and re-run `flutter run`.
-- **In Automated Tests**: The test suite runs against in-memory SQLite (`inMemoryDatabasePath`) using `sqflite_common_ffi`, ensuring each test run starts with a clean database.
+- **On Android (Device or Emulator)**:
+  ```bash
+  flutter run
+  ```
+
+- **On iOS (Simulator or Physical Device)**:
+  ```bash
+  cd ios
+  pod install
+  cd ..
+  flutter run
+  ```
+
+### Executing Tests
+DailyFlow includes comprehensive automated unit, widget, and integration test suites covering data persistence, task management, recurrence engines, reporting, and notification scheduling.
+
+```bash
+flutter test
+```
+*Tests leverage `sqflite_common_ffi` with in-memory SQLite, running completely offline without requiring an emulator or device.*
+
+### Building Android APKs
+
+- **Build Release APK**:
+  ```bash
+  flutter build apk --release
+  ```
+  The generated APK will be output to:
+  `build/app/outputs/flutter-apk/app-release.apk`
+
+- **Build Debug APK**:
+  ```bash
+  flutter build apk --debug
+  ```
+  The generated debug APK is located at:
+  `build/app/outputs/flutter-apk/app-debug.apk`
 
 ---
 
----
+## 6. Notifications & Background Scheduling
 
-## 9. Phase 3 Architecture: Daily Activity Management & Calendar Screen
+DailyFlow includes a complete, offline local notification engine built on `flutter_local_notifications` and `timezone`.
 
-### 1. Daily Activity Management Module
-The Daily Activities module enables users to configure recurring routines (such as Breakfast, Lunch, Exercise, Meetings, Medication, and Custom habits) with:
-- **Title, Category, Scheduled Time (12h AM/PM), Reminder toggle, Frequency (Daily, Weekdays), and Active/Inactive status.**
-- **Dual-Tab Interface**:
-  - **Tab 1: Daily Schedule**: Interactive date-ribbon navigation, status filter chips (`All`, `Pending`, `Completed`, `Skipped`), summary stat pills, and `ActivityCard`s with immediate status toggle actions.
-  - **Tab 2: All Routines**: Master template manager with active/inactive switches, editing, and confirmation-gated deletion.
-- **Occurrence Status Operations**:
-  - **Mark Completed**: Records `status = 'completed'`, sets `is_completed = 1`, and timestamp.
-  - **Mark Skipped**: Records `status = 'skipped'`, sets `is_completed = 0`, and note `'Skipped'`.
-  - **Keep Pending**: Resets `status = 'pending'`, clearing completion flags without touching historical data.
-
-### 2. Date-wise Occurrence Logic & Isolation Engine
-- **Master vs. Occurrence Separation**: Activity templates are defined in `activities`, while daily occurrences are recorded in `activity_occurrences`.
-- **Strict Date Isolation**: Completing or skipping today's activity occurrence does not mutate past records or tomorrow's pending occurrence.
-- **Duplicate Prevention**: Guaranteed at both the database level (`UNIQUE(activity_id, occurrence_date)`) and application level (`ConflictAlgorithm.ignore`).
-- **Missed / Overdue Detection**: Occurrences on dates strictly before today that remain in a `pending` status are dynamically identified as `Missed` / `Overdue`.
-- **Safe Deactivation**: Deactivating an activity sets `is_active = 0`, stopping future occurrence generation while preserving past history in full.
-
-### 3. Professional Calendar Screen (`table_calendar`)
-- **Monthly Grid**: Smooth month-to-month swipe and header chevrons.
-- **Dual Event Dot Markers**:
-  - Primary Indigo dot indicates scheduled **Tasks**.
-  - Emerald Green dot indicates scheduled **Activities**.
-  - Dual dots visually indicate dates with both tasks and activities.
-- **Selected Date Details**:
-  - `DateSummaryCard` showing formatted date and real-time count pills (`Done`, `Due`, `Overdue` for tasks; `Done`, `Skip`, `Due` for activities).
-  - Segmented control to toggle between **Tasks List** and **Activities List**.
-  - Interactive item cards allowing users to complete tasks or mark activities completed/skipped directly from the calendar.
-- **One-Tap "Today" Action**: Quickly returns the calendar view and date selection to today.
-
-### 4. Database Version 3 Migration
-The SQLite database schema was upgraded to version 3 using incremental, versioned migrations:
-```sql
--- Migration v2 -> v3
-ALTER TABLE activities ADD COLUMN scheduled_time TEXT;
-ALTER TABLE activities ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE activity_occurrences ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';
-UPDATE activity_occurrences SET status = 'completed' WHERE is_completed = 1;
-UPDATE activity_occurrences SET status = 'skipped' WHERE notes = 'Skipped';
-```
-
----
-
-## 10. Phase 4 Architecture: Local Notifications & Background Processing
-
-DailyFlow Phase 4 establishes an offline-first notification and background reconciliation engine powered by `flutter_local_notifications` and the `timezone` package.
-
-### 1. Notification Architecture & Scheduling Engine
-
-```
-┌────────────────────────────────────────────────────────┐
-│               Task / Activity Repository               │
-│   • On Create: scheduleNotification(entity)            │
-│   • On Update: reschedule / cancel notification        │
-│   • On Delete: cancelNotification(id)                  │
-└───────────────────────────┬────────────────────────────┘
-                            │
-┌───────────────────────────▼────────────────────────────┐
-│              NotificationService (GetxService)         │
-│   • Lifecycle Observer (resumed state trigger)         │
-│   • Deterministic ID generator                         │
-│   • Exact alarm mode resolver (with fallback)          │
-│   • Dual-direction reconciliation                      │
-└───────────────────────────┬────────────────────────────┘
-                            │
-┌───────────────────────────▼────────────────────────────┐
-│       FlutterLocalNotificationsPlugin + Timezone       │
-│   • Android AlarmManager / ExactAlarmWhileIdle         │
-│   • ScheduledNotificationBootReceiver (reboot survival)│
-│   • High-priority Android notification channel         │
-└────────────────────────────────────────────────────────┘
-```
-
-### 2. Deterministic Notification Identifier Scheme
-
-To guarantee collision-free ID mapping and enable instant, O(1) correlation between database entities and OS-level pending alarms, DailyFlow uses partitioned deterministic 32-bit integer ranges:
+### Deterministic ID Partitioning Scheme
+To guarantee collision-free notification IDs across distinct domain models and enable instant correlation between notifications and database entities:
 
 | Entity Type | Base Offset | ID Formula | Example |
 | :--- | :---: | :---: | :---: |
 | **Tasks** (One-time & Recurring) | `1,000,000` | `1000000 + task.id` | Task #5 $\rightarrow$ Notification `1000005` |
 | **Daily Activities / Routines** | `2,000,000` | `2000000 + activity.id` | Activity #3 $\rightarrow$ Notification `2000003` |
 
-**Key Architectural Benefits:**
-- **Zero Collision Risk**: Tasks and Activities operate in disjoint integer subspaces.
-- **Bi-directional Mapping**: Given any notification ID, `id - 1000000` or `id - 2000000` identifies the exact underlying database row.
-- **Natural Duplicate Prevention**: Scheduling with an existing deterministic ID automatically updates/overwrites the active alarm in the OS scheduler without creating duplicate alerts.
+### Scheduling Engine & Recurrence Logic
+- **One-Time Tasks**: Scheduled for `task.dueDate` at `task.reminderTime ?? task.dueTime`. `matchDateTimeComponents: null` ensures single-fire execution. Past due dates are automatically skipped.
+- **Daily Recurring Tasks**: Scheduled with `matchDateTimeComponents: DateTimeComponents.time`. If today's time has passed, scheduling rolls over to tomorrow.
+- **Daily Recurring Activities**: Scheduled at `activity.scheduledTime` with daily repetition. Deactivating an activity cancels its notification.
 
-### 3. Scheduling Types & Recurrence Logic
+### Startup & Resume Reconciliation Pipeline
+To ensure OS-level alarms remain in sync with database states (e.g., tasks completed while notifications were off):
+1. **Cold Start**: Evaluated in `main.dart` upon app launch.
+2. **App Resume**: Evaluated when the app resumes from the background (`AppLifecycleState.resumed`).
+3. **Settings Toggle**: Evaluated when reminders are re-enabled in Settings.
 
-1. **One-Time Tasks**:
-   - Scheduled for `task.dueDate` at `task.reminderTime ?? task.dueTime`.
-   - `matchDateTimeComponents: null` ensures the alert triggers exactly once.
-   - If the calculated target datetime is in the past, scheduling is skipped, and any stale notification is cancelled.
-2. **Daily Recurring Tasks**:
-   - Scheduled at `task.reminderTime ?? task.dueTime` with `matchDateTimeComponents: DateTimeComponents.time`.
-   - If today's target time has already passed, the initial trigger automatically rolls over to tomorrow at that time.
-3. **Daily Recurring Activities**:
-   - Scheduled at `activity.scheduledTime` with `matchDateTimeComponents: DateTimeComponents.time`.
-   - Fires daily at the configured routine time (e.g., `08:00 AM`).
-   - Automatically cancelled when the activity template is deactivated (`is_active = 0`) or reminder toggle is turned off.
-
-### 4. Background Reconciliation Mechanism
-
-Because an app may be terminated while tasks are completed on other screens, reminder times are edited, or schedules expire, DailyFlow runs an automated **Reconciliation Engine** on:
-1. Application cold start (`main.dart`).
-2. Application resume from background (`didChangeAppLifecycleState(AppLifecycleState.resumed)`).
-3. Re-enabling notifications via the Settings screen.
-
-**Reconciliation Pipeline:**
-1. **Global Setting Check**: If master notifications are toggled OFF in app settings, all OS alarms are cancelled immediately and reconciliation halts.
-2. **SQLite Query**: Loads all active tasks and active activities with reminders enabled.
-3. **Expected ID Calculation**: Builds a set of expected notification IDs. Expired one-time tasks and completed tasks are omitted.
-4. **OS Pending Inspection**: Queries `pendingNotificationRequests()` to obtain currently queued alarms in Android/iOS.
-5. **Pruning Obsolete Alarms**: Any pending OS notification whose ID is absent from the expected set is cancelled.
-6. **Missing / Updated Schedules**: Re-enqueues expected alarms to guarantee accurate payload, title, body, and trigger times.
-
-### 5. Android Manifest, Permissions, & Device Reboot Handling
-
-#### Android Permissions Declared:
-```xml
-<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-<uses-permission android:name="android.permission.VIBRATE"/>
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-<uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
-```
-
-#### Native Receivers Configured:
-```xml
-<receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
-<receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
-    <intent-filter>
-        <action android:name="android.intent.action.BOOT_COMPLETED"/>
-        <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
-        <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-        <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
-    </intent-filter>
-</receiver>
-```
-
-- **Reboot Persistence**: `ScheduledNotificationBootReceiver` listens for `BOOT_COMPLETED` and reinstates pending alarms registered by `flutter_local_notifications`.
-- **Runtime Permission**: Requested via `NotificationService.to.requestPermissions()` on Android 13+ (API 33+).
-- **Exact Alarms**: Checks `canScheduleExactNotifications()` on Android 12+ (API 31+). If granted, uses `AndroidScheduleMode.exactAllowWhileIdle`. If denied or restricted, gracefully falls back to `AndroidScheduleMode.inexactAllowWhileIdle`.
-
-### 6. Settings Screen Controls & Safety Guarantee
-
-- **Global Reminders Switch**: Enables or disables all scheduled alerts.
-- **Permission Status Indicators**: Shows live permission status (`Active` vs `Denied`) and exact alarm capability.
-- **Direct System Settings Shortcut**: `Open System Notification Settings` opens the native app notification settings page without leaving the app.
-- **Data Safety**: Disabling notifications cancels pending OS alarms but **never deletes or modifies SQLite tasks, routines, or completion history**.
+### Boot Receiver & Alarm Survival
+- **Manifest Receiver**: `ScheduledNotificationBootReceiver` is registered in `AndroidManifest.xml` with `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`.
+- When the device reboots, pending native alarms are automatically restored by the OS receiver without requiring the user to open the app.
 
 ---
 
-## 11. Phase 5 — Statistics & Reports Architecture & Calculation Rules
+## 7. Statistics, Reports & Analytics (Phase 5)
 
-### 1. Overview
-The Statistics & Reports module provides deep insights into productivity, task completion rates, habit consistency, and historical performance using live SQLite aggregations without duplicate tables or duplicated business logic.
+### Reporting Architecture
+Statistical calculations are centralized in `ReportingService` and consumed by `ReportsController`. The UI renders four analytics sections:
+1. **Daily Report**: Donut charts and progress metrics for a selected day.
+2. **Weekly Report**: 7-day progression bar chart (`fl_chart`), week totals, and day-by-day comparison cards with week navigation.
+3. **Category Summary**: Distribution donut chart and category cards showing total, completed, skipped, and completion rates.
+4. **Date History**: Read-only timeline with filter chips (`All`, `Tasks`, `Activities`) and status badges.
 
-### 2. Architecture & Data Flow
-All statistical queries are centralized in `ReportingService` (injected via GetX `InitialBinding` and `ReportsBinding`) which delegates queries to `TaskLocalDataSource` and `ActivityLocalDataSource`. The `ReportsController` maintains the UI state, tab selections, active date, and week ranges.
+### Calculation & Aggregation Rules
 
-- **Reports View (`ReportsView`)**: Divided into 4 segmented sections:
-  1. **Daily Report (`DailyReport`)**: Single-day performance with interactive date selector, donut charts, and summary metric tiles.
-  2. **Weekly Report (`WeeklyReport`)**: 7-day progression bar chart, week-over-week totals, day-by-day comparison cards, and previous/next week navigation.
-  3. **Category Summary (`CategoryReport`)**: Distribution donut chart and category-by-category cards detailing total occurrences, completed, pending, skipped, and completion rates.
-  4. **Date History (`HistoryReport`)**: Read-only historical timeline with filter chips (`All`, `Tasks`, `Activities`), status badges (`Completed`, `Pending`, `Skipped`, `Overdue`), and metric badges.
+#### Daily Statistics:
+For a selected ISO date $D$ (`yyyy-MM-dd`):
+- $\text{taskTotal} = \text{Count of task occurrences where } \text{occurrence\_date} = D$
+- $\text{taskCompleted} = \text{Count where } \text{occurrence\_date} = D \text{ and } \text{is\_completed} = 1$
+- $\text{taskPending} = \max(0, \text{taskTotal} - \text{taskCompleted})$
+- $\text{taskOverdue}$: If $D < \text{today}$, all uncompleted tasks on date $D$; if $D = \text{today}$, all uncompleted tasks with $\text{occurrence\_date} < \text{today}$; if $D > \text{today}$, $0$.
+- $\text{taskCompletionRate} = \frac{\text{taskCompleted}}{\text{taskTotal}} \times 100\%$ (or $0\%$ if total is 0).
+- $\text{activityCompleted} = \text{Count where } \text{status} = \text{'completed'}$
+- $\text{activitySkipped} = \text{Count where } \text{status} = \text{'skipped'}$
+- $\text{activityPending} = \max(0, \text{activityTotal} - \text{activityCompleted} - \text{activitySkipped})$
 
-### 3. Calculation & Aggregation Rules
-
-#### Daily Statistics Calculation Rules:
-For a selected ISO date `D` (`yyyy-MM-dd`):
-1. **Recurring Occurrence Generation**: Calling `getOccurrencesForDate(D)` dynamically ensures recurring tasks and active routine occurrences are generated for date `D` if not previously populated, avoiding missing or phantom records.
-2. **Total Tasks (`taskTotal`)**: Count of all task occurrences with `occurrence_date = D`.
-3. **Completed Tasks (`taskCompleted`)**: Count of task occurrences with `occurrence_date = D` and `is_completed = 1`.
-4. **Pending Tasks (`taskPending`)**: Count of task occurrences with `occurrence_date = D` and `is_completed = 0` (`max(0, taskTotal - taskCompleted)`).
-5. **Overdue Tasks (`taskOverdue`)**:
-   - If `D == today`: Tasks from prior dates with `occurrence_date < today` and `is_completed = 0`.
-   - If `D < today`: Any uncompleted task on date `D` (`taskTotal - taskCompleted`).
-   - If `D > today`: `0` (future tasks cannot be overdue).
-6. **Task Completion Rate (`taskCompletionPct`)**:
-   $$\text{Completion Rate} = \begin{cases} 0\% & \text{if } \text{taskTotal} = 0 \\ \left(\frac{\text{taskCompleted}}{\text{taskTotal}} \times 100\right)\% & \text{otherwise} \end{cases}$$
-7. **Total Activities (`activityTotal`)**: Count of all activity occurrences with `occurrence_date = D`.
-8. **Completed Activities (`activityCompleted`)**: Count of activity occurrences with `occurrence_date = D` and (`is_completed = 1` or `status = 'completed'`).
-9. **Skipped Activities (`activitySkipped`)**: Count of activity occurrences with `occurrence_date = D` and `status = 'skipped'`.
-10. **Pending Activities (`activityPending`)**: $\max(0, \text{activityTotal} - \text{activityCompleted} - \text{activitySkipped})$.
-
-#### Weekly Statistics Calculation Rules:
-For a week beginning on Monday `M` (`yyyy-MM-dd`) through Sunday `S`:
-1. **Daily Aggregation**: Computes daily statistics for each of the 7 days (Mon through Sun).
-2. **Week Totals**:
-   - $\text{weekTaskCompleted} = \sum_{i=1}^7 \text{taskCompleted}_i$
-   - $\text{weekTaskTotal} = \sum_{i=1}^7 \text{taskTotal}_i$
-   - $\text{weekTaskPending} = \sum_{i=1}^7 \text{taskPending}_i$
-   - $\text{weekTaskOverdue} = \sum_{i=1}^7 \text{taskOverdue}_i \quad (\text{for days } \le \text{today})$
-   - $\text{weekActivityCompleted} = \sum_{i=1}^7 \text{activityCompleted}_i$
-   - $\text{weekActivityTotal} = \sum_{i=1}^7 \text{activityTotal}_i$
-3. **Weekly Task Completion %**:
-   $$\text{Week Completion \%} = \begin{cases} 0\% & \text{if } \text{weekTaskTotal} = 0 \\ \left(\frac{\text{weekTaskCompleted}}{\text{weekTaskTotal}} \times 100\right)\% & \text{otherwise} \end{cases}$$
-4. **Day-by-Day Progression**: Each day contains its completion %, day abbreviation, task counts, and activity counts for direct side-by-side comparison.
-
-#### Category Summary Rules:
-Activities are aggregated across categories via SQL `GROUP BY a.category`:
-- `total`: Total occurrences tracked for that category.
-- `completed`: Sum of occurrences completed.
-- `skipped`: Sum of occurrences skipped.
-- `pending`: Occurrences awaiting completion.
-- `completionPct`: Percentage of completed out of total.
+#### Weekly Statistics:
+Aggregates the 7 days (Monday through Sunday) of the selected week:
+- $\text{weekTaskCompleted} = \sum_{i=1}^7 \text{taskCompleted}_i$
+- $\text{weekTaskTotal} = \sum_{i=1}^7 \text{taskTotal}_i$
+- $\text{weekCompletionRate} = \frac{\text{weekTaskCompleted}}{\text{weekTaskTotal}} \times 100\%$
 
 #### Read-Only Historical Integrity:
-To satisfy requirements, all records displayed in `HistoryReport` are strictly **read-only**. Tapping historical items does not toggle checkboxes or mutate database states, ensuring that viewing historical reports never alters historical data.
+All records rendered in the History tab are strictly **read-only**. Tapping historical items displays details without mutating completion statuses, ensuring reports never distort historical data.
 
 ---
 
-## 12. Current Implementation Status
+## 8. Known Operating System Limitations & Platform Constraints
 
-| Milestone / Component | Status | Details |
-| :--- | :---: | :--- |
-| **Project Setup & Pubspec** | **Completed** | Clean dependencies configured (`get`, `sqflite`, `intl`, `fl_chart`, `table_calendar`, `flutter_local_notifications`, `timezone`). |
-| **Folder Structure & Architecture** | **Completed** | Feature-based MVVM + Repository Pattern. |
-| **SQLite Schema & Indexes** | **Completed** | Schema v3 with tasks, activities, occurrences, and settings tables. |
-| **Data Models & DataSources** | **Completed** | Null-safe entities with `toMap()`, `fromMap()`, and transactional datasources. |
-| **Repository Contracts & Impls** | **Completed** | `TaskRepository`, `ActivityRepository`, and `SettingsRepository` with notification triggers. |
-| **Material 3 Theming** | **Completed** | Light and Dark palettes, typography, rounded cards, and status semantics. |
-| **5-Tab Navigation Shell** | **Completed** | `DashboardView` with Material 3 `NavigationBar`. |
-| **Premium Dashboard UI (Phase 2)** | **Completed** | Today's progress card, completion %, metrics, chronological timeline, and upcoming tasks. |
-| **Task Management UI & CRUD (Phase 2)** | **Completed** | Task creation, editing, deletion, inline form validation, category/status filters, and search. |
-| **Daily Activities & Habit Tracking (Phase 3)** | **Completed** | Master activity templates, scheduled time, reminder toggle, daily schedule view, and occurrence status engine. |
-| **Calendar Timeline Screen (Phase 3)** | **Completed** | `TableCalendar` monthly view, dual-color task/activity dots, date summary metrics, and date item lists. |
-| **Local Reminders & Notifications (Phase 4)** | **Completed** | One-time & daily task reminders, daily activity reminders, exact alarm fallback, boot receivers, startup/resume reconciliation, and settings UI. |
-| **Visual Productivity Analytics (Phase 5)** | **Completed** | Full reporting dashboard: Daily, Weekly, Category, and History tabs with `fl_chart`, live SQLite aggregation, and read-only history review. |
+| Constraint / Limitation | Platform | Architectural Impact | Mitigation / Handling in DailyFlow |
+| :--- | :---: | :--- | :--- |
+| **Android Force-Stop State** | Android | When a user performs "Force Stop" from Android Settings, the OS terminates all background processes, cancels all scheduled alarms, and blocks broadcast receivers. | Documented platform security behavior. Alarms are restored as soon as the user opens DailyFlow via the startup reconciliation engine. |
+| **OEM Aggressive Battery Optimizers** | Android | Aggressive background managers (Xiaomi MIUI/HyperOS, Huawei EMUI, Samsung OneUI) throttle background alarms and delay execution to save battery. | The Settings screen informs users and provides a direct shortcut to app settings to configure "Unrestricted / No Battery Optimization" mode. |
+| **Exact Alarm Permissions (`SCHEDULE_EXACT_ALARM`)** | Android 12+ (API 31+) | Starting with Android 12/13, scheduling exact minute-level alarms requires system permission. | DailyFlow checks `canScheduleExactNotifications()`. If granted, it uses `AndroidScheduleMode.exactAllowWhileIdle`; if denied, it gracefully falls back to `AndroidScheduleMode.inexactAllowWhileIdle`. |
+| **Runtime Notification Permission (`POST_NOTIFICATIONS`)** | Android 13+ (API 33+) | Notifications cannot post banners or alerts without explicit runtime user consent. | Requested on initial startup and managed with live status indicators (`Active` vs `Denied`) in the Settings view. |
+| **Device Reboot Behavior** | Android | Device power cycles clear volatile alarm memory in `AlarmManager`. | Handled by `ScheduledNotificationBootReceiver` listening for `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED` to reinstate future alarms. |
+| **Local System Clock Tampering** | Android / iOS | Offline applications rely on device hardware clock rather than remote NTP time. | All stored timestamps use UTC ISO-8601 formatting. The occurrence engine derives status from relative date comparisons. Future occurrences roll over deterministically. |
+| **iOS Background Throttling** | iOS | iOS does not permit arbitrary background daemons for local scheduling. | Relies on native `UNUserNotificationCenter` with exact calendar trigger components, managed entirely on-device by iOS. |
+| **Headless CI / Testing Database Driver** | Desktop / CI | Standard `sqflite` mobile bindings require native Android/iOS runtimes and fail in desktop test runners. | Handled by initializing `sqflite_common_ffi` (`sqfliteFfiInit(); databaseFactory = databaseFactoryFfi;`) in all test files using in-memory databases. |
 
 ---
 
-## 13. Known Limitations & Operating System Restrictions
+## 9. Technology Stack & Dependencies
 
-1. **Android Force-Stop State**: If the user manually "Force Stops" the application from Android App Info settings, Android removes all scheduled alarms and disables broadcast receivers until the user manually relaunches the application. This is a core Android security constraint.
-2. **Aggressive Battery Optimizers / OEM Task Killers**: Certain Android vendors (Xiaomi/MIUI, Huawei, Samsung) employ aggressive background app managers that can delay or drop inexact alarms. Users can whitelist DailyFlow under "Battery Optimization / Unrestricted" for best precision.
-3. **Exact Alarm Permission on Android 13+**: Starting with Android 13, applications require user consent or system allowance for `SCHEDULE_EXACT_ALARM`. DailyFlow detects when this permission is restricted and gracefully falls back to inexact scheduling (`inexactAllowWhileIdle`) so alarms still fire near the scheduled time.
-4. **Local Device Clock Dependency**: Because DailyFlow operates 100% offline without remote NTP servers, scheduled notification trigger times rely on the device's local system clock.
-5. **No Cloud Push Dependency**: DailyFlow intentionally relies exclusively on on-device native schedulers, preserving user privacy and zero data leakage.
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8            # iOS-style iconography
+  get: ^4.7.3                        # Reactive state management, DI & routing
+  sqflite: ^2.4.6                    # SQLite native persistence engine
+  path: ^1.9.1                       # Path manipulation utilities
+  path_provider: ^2.1.6              # Device filesystem directory resolution
+  intl: ^0.20.3                      # Date formatting & internationalization
+  fl_chart: ^1.3.1                   # Data visualization & reporting charts
+  table_calendar: ^3.3.0             # Interactive calendar timeline component
+  flutter_local_notifications: ^23.0.2 # On-device local notification scheduler
+  timezone: ^0.11.0                  # Timezone-aware date calculations
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0              # Strict Flutter linting rules
+  sqflite_common_ffi: ^2.4.7         # In-memory SQLite driver for headless testing
+  flutter_launcher_icons: ^0.13.1    # Automated app launcher icon generation
+```
+
+---
+
+## 10. Directory Structure
+
+```
+lib/
+├── main.dart                               # App entry point, services bootstrap & GetMaterialApp
+├── app/
+│   ├── bindings/initial_binding.dart       # Core DI container (DB, DataSources, Repositories, Services)
+│   ├── routes/
+│   │   ├── app_pages.dart                  # Route definitions connecting routes to Views & Bindings
+│   │   └── app_routes.dart                 # Route string constants
+│   └── theme/
+│       ├── app_colors.dart                 # Semantic color palette (Indigo, Emerald, Amber, Rose, Slate)
+│       ├── app_theme.dart                  # Material 3 Light and Dark theme configurations
+│       └── app_typography.dart             # Typography styles
+├── core/
+│   ├── constants/
+│   │   ├── app_constants.dart              # Global app constants, categories, priorities
+│   │   └── db_constants.dart               # Table and column schema constants
+│   ├── database/
+│   │   └── database_helper.dart            # SQLite singleton, PRAGMA foreign keys, migrations
+│   ├── services/
+│   │   ├── notification_service.dart       # Local notification scheduling & reconciliation service
+│   │   └── reporting_service.dart          # Aggregation engine for daily/weekly/category statistics
+│   ├── utils/
+│   │   ├── app_logger.dart                 # Unified logging utility
+│   │   └── date_utils.dart                 # ISO date formatting, week helpers, and date calculations
+│   └── widgets/
+│       ├── custom_card.dart                # Styled Material 3 card
+│       ├── empty_state_widget.dart         # Empty data state graphic and message widget
+│       └── status_badge.dart               # Status pill badges (Completed, Pending, Overdue)
+├── data/
+│   ├── datasources/
+│   │   ├── activity_local_datasource.dart  # SQLite operations for activities & daily logs
+│   │   └── task_local_datasource.dart      # SQLite operations for tasks & date occurrences
+│   ├── models/
+│   │   ├── activity_model.dart             # Activity master entity
+│   │   ├── activity_occurrence_model.dart  # Activity date occurrence entity
+│   │   ├── task_model.dart                 # Task master entity
+│   │   └── task_occurrence_model.dart      # Task date occurrence entity
+│   └── repositories/
+│       ├── activity_repository.dart        # Activity repository contract and implementation
+│       ├── settings_repository.dart        # Key-value SQLite settings repository
+│       └── task_repository.dart            # Task repository contract and implementation
+└── modules/
+    ├── dashboard/                          # Home dashboard with progress card and timelines
+    ├── tasks/                              # Task management, list, filtering, and TaskFormSheet
+    ├── activities/                         # Daily activities management and ActivityFormSheet
+    ├── calendar/                           # Monthly calendar view with event dots and details
+    ├── reports/                            # Statistics dashboard: Daily, Weekly, Category, History
+    └── settings/                           # Notifications toggle, exact alarm status, theme picker
+```
+
+---
